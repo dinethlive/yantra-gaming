@@ -1,0 +1,47 @@
+{
+	"name": "yantra-gaming",
+	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*",
+		"games/*"
+	],
+	"engines": {
+		"bun": ">=1.3.10"
+	},
+	"scripts": {
+		"dev": "bun scripts/kill-ports.ts 4500 4300 3100 3101 3103 && concurrently --kill-others-on-fail -n rgs,mock,client,portal,platform -c blue,magenta,green,yellow,cyan \"bun run dev:rgs\" \"bun run dev:mock\" \"bun run dev:client\" \"bun run dev:portal\" \"bun run dev:provider\"",
+		"dev:core": "bun scripts/kill-ports.ts 4500 4300 && concurrently --kill-others-on-fail -n rgs,mock -c blue,magenta \"bun run dev:rgs\" \"bun run dev:mock\"",
+		"dev:rgs": "cd apps/rgs-server && bun run dev",
+		"dev:mock": "cd apps/mock-operator && bun run dev",
+		"dev:client": "cd apps/game-client && bun run dev",
+		"dev:portal": "cd apps/operator-portal && bun run dev",
+		"dev:provider": "cd apps/provider-admin && bun run dev",
+		"build:rgs": "cd apps/rgs-server && bun run build",
+		"build:mock": "cd apps/mock-operator && bun run build",
+		"build:client": "cd apps/game-client && bun run build",
+		"build:portal": "cd apps/operator-portal && bun run build",
+		"build:provider": "cd apps/provider-admin && bun run build",
+		"db:generate": "cd apps/rgs-server && bunx --bun prisma generate",
+		"db:migrate": "cd apps/rgs-server && bunx --bun prisma migrate dev",
+		"db:seed": "cd apps/rgs-server && bun run seed",
+		"db:studio": "cd apps/rgs-server && bunx --bun prisma studio",
+		"test:integration": "bun test tests/integration",
+		"test:math": "bun test tests/games",
+		"test:e2e": "bun test tests/e2e",
+		"load": "k6 run tests/load/k6-bet-flow.js",
+		"reconcile": "bun scripts/reconcile.ts",
+		"cert-packet": "bun scripts/export-cert-packet.ts",
+		"docs:serve": "uvx --with mkdocs-material==9.5.49 --with mkdocs-same-dir==0.1.3 --with pymdown-extensions==10.12 --with pygments==2.18.0 --from mkdocs==1.6.1 mkdocs serve",
+		"docs:build": "uvx --with mkdocs-material==9.5.49 --with mkdocs-same-dir==0.1.3 --with pymdown-extensions==10.12 --with pygments==2.18.0 --from mkdocs==1.6.1 mkdocs build --strict",
+		"lint": "bunx --bun biome lint .",
+		"format": "bunx --bun biome format --write .",
+		"check": "bunx --bun biome check ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.11",
+		"concurrently": "^9.2.1",
+		"socket.io-client": "^4.8.0",
+		"typescript": "^5.6.0"
+	}
+}
