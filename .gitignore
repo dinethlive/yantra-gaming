@@ -1,0 +1,80 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Bun
+.bun/
+bun-build/
+
+# Turborepo
+.turbo/
+
+# Prisma generated client (regenerated via `bun run db:generate`)
+apps/rgs-server/src/generated/
+**/src/generated/prisma/
+
+# Env files
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Coverage / test output
+coverage/
+.nyc_output/
+*.lcov
+
+# Playwright / Cypress
+playwright-report/
+playwright/.cache/
+test-results/
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+
+# Postgres local data dir
+pgdata/
+
+# Cert artefact storage (dev)
+.cert-storage/
+
+# MkDocs build output (rendered site — GitHub Actions deploys from CI build)
+site/
+.cache/
+
+# Cert-packet export output
+cert-packets/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code harness
+.claude-code/
+.claude/settings.local.json
+CLAUDE.md
