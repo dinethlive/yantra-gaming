@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yantra-gaming-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: yantra_gaming
+      POSTGRES_PASSWORD: yantra_gaming_dev
+      POSTGRES_DB: yantra_gaming
+    ports:
+      - "5434:5432"
+    volumes:
+      - yantra_gaming_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yantra_gaming -d yantra_gaming"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  yantra_gaming_pgdata:
