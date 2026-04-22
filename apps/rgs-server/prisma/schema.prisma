@@ -1,0 +1,811 @@
+// Yantra B2B Remote Gaming Server — multi-tenant schema.
+//
+// Design rules (do not break without re-reading ../../../yantra/B2B_ROADMAP.md §9):
+//   1. Every row is scoped to an Operator. We never hold end-player data.
+//   2. We do not store balances. The operator's wallet is the source of truth.
+//   3. WalletCall is an append-only audit log of every call in either direction.
+//   4. All money is BigInt micro-units (value × 100_000). Hub88 convention.
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Operator (tenant) ───────────────────────────────────
+
+model Operator {
+  id                String   @id @default(uuid()) @db.Uuid
+  slug              String   @unique @db.VarChar(64)
+  name              String   @db.VarChar(200)
+  status            OperatorStatus @default(ACTIVE)
+  testMode          Boolean  @default(false) @map("test_mode") // excluded from default platform reports/billing
+  // Deployment environment. SANDBOX and PRODUCTION are strict peers — no
+  // cross-env data pollution. The `siblingOperatorId` field pairs a
+  // sandbox row with its production twin so operators can switch at
+  // launch-URL time without re-integrating. See B2B_ROADMAP §2.
+  environment       OperatorEnvironment @default(PRODUCTION)
+  siblingOperatorId String? @map("sibling_operator_id") @db.Uuid
+  jurisdiction      String   @db.VarChar(8)              // ISO 3166-1 alpha-2 or "MULTI"
+  defaultCurrency   String   @map("default_currency") @db.VarChar(8)
+  // Currency whitelist — the set of currencies this operator may serve.
+  // Empty list = fall back to [defaultCurrency]. Enforced in
+  // POST /v1/session. Updates are auditable via OperatorConfigAuditLog.
+  allowedCurrencies String[] @default([]) @map("allowed_currencies")
+  walletCallbackUrl String   @map("wallet_callback_url")
+  ipAllowList       String[] @default([]) @map("ip_allow_list")
+  allowedCountries  String[] @default([]) @map("allowed_countries") // ISO 3166-1 alpha-2 list; empty = no restriction (enforcement wiring pending)
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  suspendedAt       DateTime? @map("suspended_at")
+  suspendedReason   String?   @map("suspended_reason") @db.VarChar(256)
+  suspendedBy       String?   @map("suspended_by") @db.VarChar(254) // portal user email
+
+  credentials         OperatorCredential[]
+  gameConfigs         OperatorGameConfig[]
+  sessions            GameSession[]
+  rounds              Round[]
+  bets                Bet[]
+  walletCalls         WalletCall[]
+  portalUsers         OperatorUser[]
+  webhookSubscriptions WebhookSubscription[]
+  webhookDeliveries   WebhookDelivery[]
+  signingKeys         OperatorSigningKey[]
+  invites             OperatorUserInvite[]
+
+  @@index([environment])
+  @@index([siblingOperatorId])
+  @@map("operators")
+}
+
+enum OperatorEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+enum OperatorStatus {
+  ACTIVE
+  PAUSED
+  TERMINATED
+}
+
+// ─── Certificate registry (GLI/BMM/iTech cert-lab artefacts) ─
+
+model Certificate {
+  id           String   @id @default(uuid()) @db.Uuid
+  gameCode     String   @map("game_code") @db.VarChar(32)
+  jurisdiction String   @db.VarChar(8)        // ISO 3166-1 alpha-2 or "MULTI"
+  lab          CertLab
+  certId       String   @map("cert_id") @db.VarChar(128)  // lab-issued certificate number
+  buildHash    String   @map("build_hash") @db.VarChar(64) // git SHA or content hash of certified build
+  version      String?  @db.VarChar(32)
+  issuedAt     DateTime @map("issued_at")
+  validFrom    DateTime @map("valid_from")
+  expiresAt    DateTime @map("expires_at")
+  filePath     String?  @map("file_path")     // object-storage pointer (s3://bucket/key) or local shim
+  fileSize     Int?     @map("file_size")     // bytes, captured on upload
+  fileSha256   String?  @map("file_sha256") @db.VarChar(64) // integrity check
+  notes        String?
+  // RNG algorithm identifier this certificate was issued against. Reviewers
+  // match it against Round.rngVersion to prove the running algorithm equals
+  // the certified algorithm. Nullable for legacy rows; new rows must set it.
+  rngVersion   String?  @map("rng_version") @db.VarChar(32)
+  revokedAt    DateTime? @map("revoked_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([gameCode, jurisdiction, lab, certId])
+  @@index([buildHash])
+  @@index([gameCode, jurisdiction, expiresAt])
+  @@map("certificates")
+}
+
+enum CertLab {
+  GLI       // Gaming Laboratories International
+  BMM       // BMM Testlabs
+  ITECH     // iTech Labs
+  ECOGRA    // eCOGRA
+  NMI       // NMi Metrology & Gaming
+  TRISIGMA  // Trisigma
+  OTHER
+}
+
+// ─── Operator credentials (API keys, wallet HMAC secrets) ─
+
+model OperatorCredential {
+  id         String   @id @default(uuid()) @db.Uuid
+  operatorId String   @map("operator_id") @db.Uuid
+  type       CredentialType
+  kid        String   @unique @db.VarChar(64) // public key id (shown in request headers)
+  cipherBlob Bytes    @map("cipher_blob")     // AES-GCM encrypted secret
+  notBefore  DateTime @default(now()) @map("not_before")
+  notAfter   DateTime? @map("not_after")
+  revokedAt  DateTime? @map("revoked_at")
+  label      String?  @db.VarChar(100)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  operator   Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId, type])
+  @@map("operator_credentials")
+}
+
+enum CredentialType {
+  API_KEY_INBOUND       // operator → us signing
+  WALLET_HMAC_OUTBOUND  // us → operator wallet signing
+}
+
+// ─── Operator portal users (human logins for back-office) ─
+
+model OperatorUser {
+  id             String   @id @default(uuid()) @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  email          String   @unique @db.VarChar(254)
+  passwordHash   String   @map("password_hash")
+  role           OperatorRole @default(OPERATOR_ADMIN)
+  displayName    String   @map("display_name") @db.VarChar(100)
+  lastLoginAt    DateTime? @map("last_login_at")
+
+  // MFA (TOTP, RFC 6238). Secret stored AES-GCM-encrypted with the same
+  // master key as OperatorCredential.cipherBlob. mfaEnrolledAt marks
+  // activation; a null secret means MFA is not set up.
+  mfaTotpSecretCipher Bytes?    @map("mfa_totp_secret_cipher")
+  mfaEnrolledAt       DateTime? @map("mfa_enrolled_at")
+  mfaRecoveryCodesHash String?  @map("mfa_recovery_codes_hash") // SHA-256 of space-joined codes
+
+  webauthnCredentials  WebauthnCredential[]
+
+  // Disabled state — set by an OPERATOR_ADMIN to block a user without
+  // deleting the row. Required for audit lineage (you can't retro-purge
+  // a user who placed bets via the portal).
+  disabledAt     DateTime? @map("disabled_at")
+  disabledBy     String?   @map("disabled_by") @db.VarChar(254)
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+  @@map("operator_users")
+}
+
+enum OperatorRole {
+  OPERATOR_ADMIN       // manage users, credentials, webhooks, config
+  OPERATOR_VIEWER      // read-only access to reports + audit
+  OPERATOR_FINANCE     // reconciliation + reports; no config changes
+  OPERATOR_SUPPORT     // player-lookup + dispute pack; no config or reports
+  // Yantra internal staff roles. KETAPOLA_STAFF is the legacy super-
+  // admin and remains the widest scope. Granular sub-roles let us
+  // grant a compliance auditor read access without also handing them
+  // the ability to rotate operator credentials.
+  KETAPOLA_STAFF       // full platform admin — super-user, manage anything
+  KETAPOLA_COMPLIANCE  // audit viewer + certificate CRUD + kill-switch; no operator config mutation
+  KETAPOLA_AUDITOR     // read-only cross-tenant audit + reports
+  KETAPOLA_SUPPORT     // round finder + dispute pack across operators; no config changes
+}
+
+// ── Invite: time-bounded token that creates an OperatorUser on accept.
+//
+// Single-use by design — once accepted, acceptedAt is stamped and the
+// invite cannot be redeemed again. Tokens are hashed at rest so a DB
+// leak cannot be used to accept invites.
+
+model OperatorUserInvite {
+  id             String   @id @default(uuid()) @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  email          String   @db.VarChar(254)
+  role           OperatorRole @default(OPERATOR_VIEWER)
+  tokenHash      String   @unique @map("token_hash") @db.VarChar(128)
+  invitedByEmail String   @map("invited_by_email") @db.VarChar(254)
+  expiresAt      DateTime @map("expires_at")
+  acceptedAt     DateTime? @map("accepted_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("operator_user_invites")
+}
+
+// ─── Per-operator game configuration (overrides global defaults) ─
+
+model OperatorGameConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  operatorId      String   @map("operator_id") @db.Uuid
+  gameCode        String   @map("game_code") @db.VarChar(32)
+  currency        String   @db.VarChar(8)
+  enabled         Boolean  @default(true)
+  // Plugin-owned math config (weights, paytable, house edge, etc.). Validated
+  // on engine startup by the plugin's configSchema. The legacy
+  // lowWeight/highWeight columns were dropped in Phase 4; `configJson` is the
+  // sole source of truth for per-game math.
+  configJson      Json     @default("{}") @map("config_json")
+  configVersion   String   @default("v1") @map("config_version") @db.VarChar(32)
+  minBetMicro     BigInt   @map("min_bet_micro")
+  maxBetMicro     BigInt   @map("max_bet_micro")
+  commissionMicro BigInt   @default(0) @map("commission_micro")
+  bettingWindowMs Int      @default(15000) @map("betting_window_ms")
+  rollingWindowMs Int      @default(4000)  @map("rolling_window_ms")
+  cooldownMs      Int      @default(3000)  @map("cooldown_ms")
+  // MiCA (EU) compliance gate. Fiat currencies default to `true`. For crypto
+  // currencies whose issuer has NOT completed MiCA authorisation (e.g. USDT
+  // as of mid-2026), operators set this to false; the engine refuses to start
+  // the config and logs a warning. Default true to not affect existing rows.
+  // See B2B_ROADMAP.md §16 "In production — Crypto / stablecoin wallets".
+  micaCompliant   Boolean  @default(true) @map("mica_compliant")
+  // Kill-switch: block new session launches for this (operator, game, currency).
+  // In-flight sessions continue to completion — GLI-19 §3 forbids mid-round
+  // termination. Reason is free-text for audit; operated by Yantra staff.
+  killSwitch       Boolean   @default(false) @map("kill_switch")
+  killSwitchReason String?   @map("kill_switch_reason") @db.VarChar(256)
+  killSwitchedAt   DateTime? @map("kill_switched_at")
+  killSwitchedBy   String?   @map("kill_switched_by") @db.VarChar(254) // portal user email, audit-only
+  // Pinned version (groundwork): when multi-version routing lands, this
+  // decides which engine build serves this config. Ignored at runtime today.
+  pinnedVersion    String?   @map("pinned_version") @db.VarChar(64)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  operator        Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@unique([operatorId, gameCode, currency])
+  @@map("operator_game_configs")
+}
+
+model OperatorConfigAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  operatorId String   @map("operator_id") @db.Uuid
+  gameCode   String   @map("game_code") @db.VarChar(32)
+  field      String   @db.VarChar(64)
+  oldValue   String?  @map("old_value")
+  newValue   String   @map("new_value")
+  changedBy  String   @map("changed_by") @db.Uuid
+  changedAt  DateTime @default(now()) @map("changed_at")
+
+  @@index([operatorId, gameCode])
+  @@map("operator_config_audit_log")
+}
+
+// ─── Game session (one per player × currency × game, short-lived) ─
+
+model GameSession {
+  id             String   @id @default(uuid()) @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  playerRef      String   @map("player_ref") @db.VarChar(128) // opaque; we never resolve
+  gameCode       String   @map("game_code") @db.VarChar(32)
+  currency       String   @db.VarChar(8)
+  lang           String   @db.VarChar(8)
+  jurisdiction   String   @db.VarChar(8)
+  mode           SessionMode @default(REAL)
+  rgLimits       Json?    @map("rg_limits")
+  returnUrl      String?  @map("return_url")
+
+  // Provably-fair state (per session, rotates when seed changes)
+  serverSeed     String   @map("server_seed")       // revealed after the session ends or seed rotates
+  serverSeedHash String   @map("server_seed_hash")  // committed at session creation
+  clientSeed     String   @map("client_seed")       // operator- or player-provided
+  nonce          Int      @default(0)
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  expiresAt      DateTime @map("expires_at")
+  terminatedAt   DateTime? @map("terminated_at")
+  terminationReason String? @map("termination_reason") @db.VarChar(64)
+
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  rounds         Round[]
+  walletCalls    WalletCall[]
+
+  @@index([operatorId, playerRef])
+  @@index([expiresAt])
+  @@map("game_sessions")
+}
+
+enum SessionMode {
+  REAL
+  DEMO
+}
+
+// ─── Round (one per spin) ───────────────────────────────
+
+model Round {
+  id             String   @id @default(uuid()) @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  sessionId      String   @map("session_id") @db.Uuid
+  gameCode       String   @map("game_code") @db.VarChar(32)
+  currency       String   @db.VarChar(8)
+  nonce          Int                                    // session-scoped round index
+  state          RoundState
+
+  // Outcome (null until rolled). `outcomeType` is the plugin's type tag
+  // (e.g. 'DICE', 'CRASH'); `outcomeData` is the plugin-specific JSON
+  // payload (the same shape returned by plugin.computeOutcome).
+  outcomeType        String?  @map("outcome_type") @db.VarChar(32)
+  outcomeData        Json?    @map("outcome_data")
+  // Version label of the OperatorGameConfig.configJson used to roll this
+  // round. Future-proofs replay when config schemas evolve.
+  gameConfigVersion  String?  @map("game_config_version") @db.VarChar(32)
+
+  // Provably-fair snapshot — copied from session at round creation
+  serverSeed     String   @map("server_seed")
+  serverSeedHash String   @map("server_seed_hash")
+  clientSeed     String   @map("client_seed")
+
+  // Money (micro-units). These are rollups; authoritative money lives in operator wallet.
+  totalBetsMicro    BigInt @default(0) @map("total_bets_micro")
+  totalPayoutsMicro BigInt @default(0) @map("total_payouts_micro")
+  houseRevenueMicro BigInt @default(0) @map("house_revenue_micro")
+
+  startedAt      DateTime? @map("started_at")
+  rolledAt       DateTime? @map("rolled_at")
+  settledAt      DateTime? @map("settled_at")
+  voidedAt       DateTime? @map("voided_at")
+  settled        Boolean  @default(false)  // true once every ACCEPTED bet has been settled or voided
+
+  // Cert / time integrity
+  //   rngVersion       — algorithm ID (matches utils/rng.ts RNG_VERSION)
+  //   buildHash        — running server's BUILD_HASH env at round creation
+  //   startedAtMonoNs  — process.hrtime.bigint() snapshot, monotonic, for
+  //                      tamper-evident phase-duration reconstruction
+  rngVersion       String  @map("rng_version") @db.VarChar(32)
+  buildHash        String? @map("build_hash") @db.VarChar(64)
+  startedAtMonoNs  BigInt? @map("started_at_mono_ns")
+
+  // Tamper-evident audit chain (see services/AuditChain.ts). The row is
+  // hashed at insertion; the hash is linked to the previous row's hash
+  // within the per-operator stream. Nullable because legacy rows predate
+  // the chain; the AuditChain backfill will populate them.
+  prevRowHash    String?  @map("prev_row_hash") @db.VarChar(64)
+  rowHash        String?  @map("row_hash") @db.VarChar(64)
+
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  session        GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  bets           Bet[]
+  walletCalls    WalletCall[]
+
+  @@index([operatorId, gameCode, startedAt])
+  @@index([sessionId])
+  @@index([settled])
+  @@index([rngVersion])
+  @@index([outcomeType])
+  @@map("rounds")
+}
+
+enum RoundState {
+  PENDING
+  BETTING_OPEN
+  ROLLING
+  RESULT
+  SETTLED
+  VOIDED
+}
+
+// ─── Bet (one per player bet in a round) ────────────────
+
+model Bet {
+  id                       String    @id @default(uuid()) @db.Uuid
+  operatorId               String    @map("operator_id") @db.Uuid
+  sessionId                String    @map("session_id") @db.Uuid
+  roundId                  String    @map("round_id") @db.Uuid
+  playerRef                String    @map("player_ref") @db.VarChar(128)
+  // Plugin-owned bet selection (e.g. dice: {side:'LOW'|'HIGH'},
+  // crash: {cashoutMultiplier: number}). Validated by the owning plugin's
+  // selectionSchema before the engine accepts the bet.
+  selection                Json
+  selectionType            String    @map("selection_type") @db.VarChar(32)
+  amountMicro              BigInt    @map("amount_micro")
+  commissionMicro          BigInt    @default(0) @map("commission_micro")
+  currency                 String    @db.VarChar(8)
+  status                   BetStatus @default(PENDING)
+  wonAmountMicro           BigInt?   @map("won_amount_micro")
+  won                      Boolean?
+
+  // Wallet call linkage (1-to-1 with operator-side transactions)
+  betTransactionUuid       String    @unique @map("bet_transaction_uuid") @db.Uuid
+  winTransactionUuid       String?   @unique @map("win_transaction_uuid") @db.Uuid
+  rollbackTransactionUuid  String?   @unique @map("rollback_transaction_uuid") @db.Uuid
+
+  placedAt                 DateTime  @default(now()) @map("placed_at")
+  settledAt                DateTime? @map("settled_at")
+
+  operator                 Operator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  round                    Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  pendingRoundBet          PendingRoundBet?
+
+  @@index([operatorId, playerRef])
+  @@index([roundId])
+  @@index([status])
+  @@map("bets")
+}
+
+enum BetStatus {
+  PENDING      // created, bet-debit in flight
+  ACCEPTED     // operator confirmed debit (RS_OK)
+  REJECTED     // operator rejected (NOT_ENOUGH_MONEY / LIMIT_REACHED)
+  SETTLED      // win or loss resolved and confirmed
+  VOIDED       // round was voided; stake refunded
+  FAILED       // pending win settlement — in retry queue
+}
+
+// ─── Pending round-bet register (GLI-19 §3 "incomplete games") ────
+//
+// When an operator debit succeeds but the round hasn't settled yet, the bet
+// is "held". GLI-19 v3 requires this be tracked in a distinct register (not
+// commingled with the live wallet ledger) so the disconnect-refund path has
+// a clean worklist. The `bets` table is our ledger; this register is the
+// "what is still in flight" view, queryable in O(1) via the state index.
+
+model PendingRoundBet {
+  id              String   @id @default(uuid()) @db.Uuid
+  operatorId      String   @map("operator_id") @db.Uuid
+  betId           String   @unique @map("bet_id") @db.Uuid
+  roundId         String   @map("round_id") @db.Uuid
+  state           PendingBetState @default(HELD)
+  heldAt          DateTime @default(now()) @map("held_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  refundedAt      DateTime? @map("refunded_at")
+  resolutionReason String?  @map("resolution_reason") @db.VarChar(64)
+
+  bet             Bet      @relation(fields: [betId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId, state])
+  @@index([roundId])
+  @@map("pending_round_bets")
+}
+
+enum PendingBetState {
+  HELD       // operator debited; round in flight
+  RESOLVED   // round settled (win or loss), any win payout has been dispatched
+  REFUNDED   // round voided or bet rolled back; stake returned
+}
+
+// ─── Wallet call log (append-only audit of every inbound & outbound) ─
+
+model WalletCall {
+  id                       String         @id @default(uuid()) @db.Uuid
+  operatorId               String         @map("operator_id") @db.Uuid
+  direction                WalletDirection
+  endpoint                 WalletEndpoint
+  requestUuid              String         @map("request_uuid") @db.Uuid
+  transactionUuid          String?        @map("transaction_uuid") @db.Uuid
+  referenceTransactionUuid String?        @map("reference_transaction_uuid") @db.Uuid
+  sessionId                String?        @map("session_id") @db.Uuid
+  roundId                  String?        @map("round_id") @db.Uuid
+  playerRef                String?        @map("player_ref") @db.VarChar(128)
+  amountMicro              BigInt?        @map("amount_micro")
+  currency                 String?        @db.VarChar(8)
+  requestBody              Json           @map("request_body")
+  responseStatus           String?        @map("response_status")
+  responseBody             Json?          @map("response_body")
+  httpStatus               Int?           @map("http_status")
+  latencyMs                Int?           @map("latency_ms")
+  attempt                  Int            @default(1)
+  succeeded                Boolean        @default(false)
+  createdAt                DateTime       @default(now()) @map("created_at")
+
+  // Tamper-evident audit chain — each WalletCall is linked by a
+  // SHA-256 of its canonical representation plus the previous row's hash
+  // in the per-operator stream. The daily tip is anchored in AuditAnchor
+  // and signed, giving WORM-equivalent evidence without DB primitives.
+  // See services/AuditChain.ts.
+  prevRowHash              String?        @map("prev_row_hash") @db.VarChar(64)
+  rowHash                  String?        @map("row_hash") @db.VarChar(64)
+
+  operator                 Operator       @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  session                  GameSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  round                    Round?         @relation(fields: [roundId], references: [id], onDelete: SetNull)
+
+  @@unique([operatorId, direction, endpoint, requestUuid])
+  @@index([operatorId, transactionUuid])
+  @@index([roundId])
+  @@index([succeeded, createdAt])
+  @@map("wallet_calls")
+}
+
+// ─── Audit chain anchor (daily tip of the tamper-evident log) ─
+//
+// At the end of each UTC day, the AuditChain job computes the head
+// hash of every per-operator stream (WalletCall, Round), concatenates
+// them into a canonical manifest, and records a signed anchor row.
+// A reviewer can verify any historical row by replaying hashes from
+// the anchor back to the row. Signing uses a dedicated secret so the
+// anchor survives portal-JWT rotation.
+
+model AuditAnchor {
+  id             String   @id @default(uuid()) @db.Uuid
+  periodDate     DateTime @map("period_date") @db.Date
+  streamName     String   @map("stream_name") @db.VarChar(32)
+  operatorId     String?  @map("operator_id") @db.Uuid
+  firstRowId     String?  @map("first_row_id") @db.VarChar(64)
+  lastRowId      String?  @map("last_row_id") @db.VarChar(64)
+  rowCount       Int      @default(0) @map("row_count")
+  tipHash        String   @map("tip_hash") @db.VarChar(64)
+  manifest       Json     // canonical per-stream head hashes
+  signature      String   // base64(HMAC-SHA256(AUDIT_ANCHOR_SECRET, canonical(manifest)))
+  algorithm      String   @default("HMAC-SHA256") @db.VarChar(32)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([periodDate, streamName, operatorId])
+  @@index([periodDate])
+  @@map("audit_anchors")
+}
+
+enum WalletDirection {
+  INBOUND   // operator calls us (rare — mostly session creation, reporting, reconciliation)
+  OUTBOUND  // we call operator's wallet (bet/win/rollback/balance)
+}
+
+enum WalletEndpoint {
+  BALANCE
+  BET
+  WIN
+  ROLLBACK
+  END_ROUND
+}
+
+// ─── Pending wallet retries (durable queue for failed win/rollback) ─
+
+model PendingWalletJob {
+  id              String   @id @default(uuid()) @db.Uuid
+  operatorId      String   @map("operator_id") @db.Uuid
+  endpoint        WalletEndpoint
+  betId           String?  @map("bet_id") @db.Uuid
+  roundId         String?  @map("round_id") @db.Uuid
+  payload         Json
+  attempts        Int      @default(0)
+  nextAttemptAt   DateTime @default(now()) @map("next_attempt_at")
+  lastError       String?  @map("last_error")
+  lockedUntil     DateTime? @map("locked_until")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([operatorId, completedAt])
+  @@index([nextAttemptAt])
+  @@map("pending_wallet_jobs")
+}
+
+// ─── Idempotency cache (inbound request_uuid dedupe) ─
+
+model InboundIdempotency {
+  operatorId  String   @map("operator_id") @db.Uuid
+  requestUuid String   @map("request_uuid") @db.Uuid
+  endpoint    String   @db.VarChar(64)
+  responseBody Json    @map("response_body")
+  httpStatus  Int      @map("http_status")
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@id([operatorId, requestUuid, endpoint])
+  @@index([expiresAt])
+  @@map("inbound_idempotency")
+}
+
+// ─── WebAuthn credentials (FIDO2 / passkeys) ─────────────────
+//
+// A user can enrol multiple authenticators (YubiKey, platform key,
+// phone). Login accepts ANY valid assertion. Once at least one
+// credential exists + mfaEnrolledAt IS NULL, the user is treated as
+// "MFA via WebAuthn only" — the TOTP branch stays dormant but usable.
+
+model WebauthnCredential {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  credentialId   String   @unique @map("credential_id") @db.VarChar(512)  // base64url of raw credId
+  publicKey      Bytes    @map("public_key")                              // COSE-encoded public key
+  counter        BigInt   @default(0)
+  transports     String[] @default([])                                    // ["usb","nfc","ble","internal"]
+  aaguid         String?  @db.VarChar(36)
+  deviceName     String?  @map("device_name") @db.VarChar(100)
+  backedUp       Boolean  @default(false) @map("backed_up")
+  createdAt      DateTime @default(now()) @map("created_at")
+  lastUsedAt     DateTime? @map("last_used_at")
+
+  user           OperatorUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("webauthn_credentials")
+}
+
+// Short-lived WebAuthn challenges (registration + authentication).
+// Rows are deleted on success and garbage-collected after 5 min.
+model WebauthnChallenge {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid           // null for assertion-before-login
+  email       String?  @db.VarChar(254)                    // set during pre-auth lookup
+  challenge   String   @db.VarChar(128)                    // base64url
+  kind        String   @db.VarChar(16)                     // "register" | "authenticate"
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([userId, kind])
+  @@index([email, kind])
+  @@index([expiresAt])
+  @@map("webauthn_challenges")
+}
+
+// ─── Cert upload session (presigned URL) ───────────────────────
+//
+// A staff action creates a short-lived token. The UI then PUTs the
+// artefact to /v1/platform/uploads/:token. The server verifies the
+// HMAC-signed token, writes to CERT_STORAGE_DIR (or S3 in prod),
+// records the SHA-256, and links the file to its Certificate row.
+
+model CertUploadToken {
+  id           String   @id @default(uuid()) @db.Uuid
+  certificateId String  @map("certificate_id") @db.Uuid
+  token        String   @unique @db.VarChar(128)
+  createdByUserId String @map("created_by_user_id") @db.Uuid
+  expiresAt    DateTime @map("expires_at")
+  consumedAt   DateTime? @map("consumed_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([certificateId])
+  @@index([expiresAt])
+  @@map("cert_upload_tokens")
+}
+
+// ─── Admin audit log (who / what / when on privileged routes) ─
+//
+// Distinct from OperatorConfigAuditLog (which captures per-tenant
+// config mutations). This table captures every write against the
+// /v1/platform namespace — suspend, kill-switch, cert CRUD, credential
+// rotation, etc. Read-only reviewers can answer "who did X on date Y"
+// without grepping server logs. GDPR-friendly: actor = email + user id,
+// no IPs or payload PII beyond what the mutation itself carried.
+
+model AdminAuditEntry {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorUserId  String?  @map("actor_user_id") @db.Uuid
+  actorEmail   String   @map("actor_email") @db.VarChar(254)
+  actorRole    String   @map("actor_role") @db.VarChar(32)
+  method       String   @db.VarChar(8)
+  path         String   @db.VarChar(256)
+  targetType   String?  @map("target_type") @db.VarChar(32)   // operator, credential, certificate, …
+  targetId     String?  @map("target_id") @db.VarChar(128)
+  bodySummary  Json?    @map("body_summary")                  // trimmed request body (no secrets)
+  responseStatus Int    @map("response_status")
+  latencyMs    Int      @map("latency_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([actorUserId, createdAt])
+  @@index([path, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("admin_audit_entries")
+}
+
+// ─── Global kill-switch (emergency stop of every engine) ─────
+//
+// Singleton row (id = "singleton"). When `engaged = true`, the
+// EngineRegistry refuses to start new engines AND the /session
+// launch route rejects with 503. In-flight rounds finish settlement
+// via their existing wallet-call chain — GLI-19 §3 forbids mid-round
+// termination. Used by ops in response to a suspected RNG compromise
+// or a regulator-mandated halt.
+
+model GlobalKillSwitch {
+  id             String   @id @default("singleton") @db.VarChar(16)
+  engaged        Boolean  @default(false)
+  reason         String?  @db.VarChar(256)
+  engagedAt      DateTime? @map("engaged_at")
+  engagedBy      String?   @map("engaged_by") @db.VarChar(254)
+  disengagedAt   DateTime? @map("disengaged_at")
+  disengagedBy   String?   @map("disengaged_by") @db.VarChar(254)
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("global_kill_switch")
+}
+
+// ─── Webhook subscriptions (operator-facing event bus) ──────
+//
+// Operators subscribe to event types (round.settled, session.terminated,
+// rg_limit.breached, reconciliation.discrepancy, …). Our WebhookDispatcher
+// posts signed payloads with exponential backoff + dead-letter + replay.
+// Signing secret lives on the subscription row (AES-GCM), not the
+// operator credential set, so a webhook key compromise does NOT expose
+// the wallet HMAC key.
+
+model WebhookSubscription {
+  id             String   @id @default(uuid()) @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  url            String
+  eventTypes     String[] @default([]) @map("event_types")
+  secretCipher   Bytes    @map("secret_cipher")                 // AES-GCM; revealed once at create
+  enabled        Boolean  @default(true)
+  description    String?  @db.VarChar(200)
+  /** Optional HMAC version label ("v1"); bumped on rotate-secret. */
+  secretVersion  String   @default("v1") @map("secret_version") @db.VarChar(16)
+  failureCount   Int      @default(0) @map("failure_count")     // consecutive deliveries that failed
+  lastSuccessAt  DateTime? @map("last_success_at")
+  lastFailureAt  DateTime? @map("last_failure_at")
+  lastFailureReason String? @map("last_failure_reason") @db.VarChar(256)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  deliveries     WebhookDelivery[]
+
+  @@index([operatorId, enabled])
+  @@map("webhook_subscriptions")
+}
+
+// Individual delivery attempt. Each row is append-only; retries create
+// new rows (a single logical event can have multiple delivery rows).
+// This is NOT the same as `attempts` on a job — it's the full history
+// per attempt, so a reviewer can trace "we tried at T, got 500; at T+60s,
+// got 500; at T+2m, got 200".
+
+model WebhookDelivery {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  eventId        String   @map("event_id") @db.Uuid
+  eventType      String   @map("event_type") @db.VarChar(64)
+  payload        Json
+  signature      String   @db.VarChar(128)
+  attempt        Int      @default(1)
+  nextAttemptAt  DateTime? @map("next_attempt_at")
+  /** Status buckets used by metrics + dashboards. */
+  state          WebhookDeliveryState @default(PENDING)
+  httpStatus     Int?     @map("http_status")
+  responseBody   String?  @map("response_body")
+  latencyMs      Int?     @map("latency_ms")
+  completedAt    DateTime? @map("completed_at")
+  deadLetteredAt DateTime? @map("dead_lettered_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId, state])
+  @@index([eventId])
+  @@index([nextAttemptAt])
+  @@map("webhook_deliveries")
+}
+
+enum WebhookDeliveryState {
+  PENDING        // queued, nextAttemptAt is future
+  IN_FLIGHT      // currently being delivered
+  SUCCEEDED
+  FAILED_RETRY   // delivery failed, will be retried
+  DEAD_LETTERED  // exceeded retry budget — requires human replay
+}
+
+// ─── Operator signing keys (asymmetric launch JWT) ──────────
+//
+// Per-operator key pair used to sign session launch JWTs with ES256 /
+// RS256. Public keys are exposed through a JWKS endpoint; private keys
+// live AES-GCM encrypted in privateJwkCipher. Multiple ACTIVE keys
+// allow zero-downtime rotation — the new key signs new tokens while
+// the old key remains valid for verification until its `notAfter`.
+
+model OperatorSigningKey {
+  id             String   @id @default(uuid()) @db.Uuid
+  operatorId     String   @map("operator_id") @db.Uuid
+  kid            String   @unique @db.VarChar(64)
+  algorithm      String   @default("ES256") @db.VarChar(16) // ES256 | RS256
+  publicJwk      Json     @map("public_jwk")
+  privateJwkCipher Bytes  @map("private_jwk_cipher")  // AES-GCM of canonical JSON
+  status         SigningKeyStatus @default(ACTIVE)
+  notBefore      DateTime @default(now()) @map("not_before")
+  notAfter       DateTime? @map("not_after")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  operator       Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId, status])
+  @@map("operator_signing_keys")
+}
+
+enum SigningKeyStatus {
+  ACTIVE        // currently signing
+  RETIRING      // not signing new, still accepted for verify
+  RETIRED       // verify grace period exceeded; reject
+}
