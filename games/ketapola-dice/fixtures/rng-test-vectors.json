@@ -1,0 +1,98 @@
+[
+  {
+    "serverSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+    "clientSeed": "client-seed-a",
+    "nonce": 0,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 3 }
+  },
+  {
+    "serverSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+    "clientSeed": "client-seed-a",
+    "nonce": 1,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 3 }
+  },
+  {
+    "serverSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+    "clientSeed": "client-seed-a",
+    "nonce": 2,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 3 }
+  },
+  {
+    "serverSeed": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "clientSeed": "client-seed-b",
+    "nonce": 0,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 9 }
+  },
+  {
+    "serverSeed": "deadbeefcafef00d0000000000000000000000000000000000000000deadbeef",
+    "clientSeed": "operator-provided",
+    "nonce": 0,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 9 }
+  },
+  {
+    "serverSeed": "deadbeefcafef00d0000000000000000000000000000000000000000deadbeef",
+    "clientSeed": "operator-provided",
+    "nonce": 100,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "HIGH", "outcomeSum": 15 }
+  },
+  {
+    "serverSeed": "deadbeefcafef00d0000000000000000000000000000000000000000deadbeef",
+    "clientSeed": "operator-provided",
+    "nonce": 1000000,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "HIGH", "outcomeSum": 15 }
+  },
+  {
+    "serverSeed": "1111111111111111111111111111111111111111111111111111111111111111",
+    "clientSeed": "asymmetric-low",
+    "nonce": 0,
+    "lowWeight": 60,
+    "highWeight": 40,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 6 }
+  },
+  {
+    "serverSeed": "1111111111111111111111111111111111111111111111111111111111111111",
+    "clientSeed": "asymmetric-low",
+    "nonce": 1,
+    "lowWeight": 60,
+    "highWeight": 40,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 9 }
+  },
+  {
+    "serverSeed": "2222222222222222222222222222222222222222222222222222222222222222",
+    "clientSeed": "asymmetric-high",
+    "nonce": 0,
+    "lowWeight": 40,
+    "highWeight": 60,
+    "expected": { "outcomeSide": "HIGH", "outcomeSum": 18 }
+  },
+  {
+    "serverSeed": "3333333333333333333333333333333333333333333333333333333333333333",
+    "clientSeed": "a-much-longer-client-seed-that-exceeds-the-default-16-bytes-by-a-wide-margin",
+    "nonce": 0,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "LOW", "outcomeSum": 6 }
+  },
+  {
+    "serverSeed": "4444444444444444444444444444444444444444444444444444444444444444",
+    "clientSeed": "කැටපොල",
+    "nonce": 0,
+    "lowWeight": 48,
+    "highWeight": 48,
+    "expected": { "outcomeSide": "HIGH", "outcomeSum": 12 }
+  }
+]
