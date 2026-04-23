@@ -1,0 +1,57 @@
+.session-expiry-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  animation: session-banner-enter 0.3s ease-out both;
+}
+
+.session-expiry-banner__icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.session-expiry-banner--warn {
+  background: rgba(235, 176, 80, 0.92);
+  color: rgba(20, 18, 10, 0.95);
+  border: 1px solid rgba(235, 176, 80, 0.3);
+}
+
+.session-expiry-banner--urgent {
+  background: rgba(231, 95, 95, 0.95);
+  color: white;
+  border: 1px solid rgba(231, 95, 95, 0.45);
+  animation:
+    session-banner-enter 0.3s ease-out both,
+    session-banner-pulse 1.2s ease-in-out 0.3s infinite;
+}
+
+@keyframes session-banner-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes session-banner-pulse {
+  0%, 100% { transform: translate(-50%, 0) scale(1); }
+  50% { transform: translate(-50%, 0) scale(1.02); }
+}
+
+.session-expiry-banner__text {
+  font-variant-numeric: tabular-nums;
+}
