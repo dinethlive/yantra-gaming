@@ -1,0 +1,84 @@
+{
+  "app": {
+    "name": "KETAPOLA",
+    "tagline": "Sri Lanka's Premier Dice Game"
+  },
+  "game": {
+    "roundId": "Round",
+    "betting": "Place Your Bet!",
+    "bettingOpen": "Betting Open",
+    "rolling": "Rolling...",
+    "result": "Result",
+    "cooldown": "Next Round...",
+    "waiting": "Waiting...",
+    "low": "LOW",
+    "high": "HIGH",
+    "lowRange": "3, 6, 9",
+    "highRange": "12, 15, 18",
+    "placeBet": "THROW DICE",
+    "betPlaced": "Bet Placed!",
+    "waitingResult": "Waiting for result...",
+    "amount": "Amount",
+    "balance": "Balance",
+    "max": "MAX",
+    "sum": "Sum",
+    "youWon": "YOU WON!",
+    "youLost": "Better luck next time",
+    "paused": "Game Paused",
+    "disconnected": "Reconnecting..."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "close": "Close"
+  },
+  "session": {
+    "expiredTitle": "Session expired",
+    "expiredMessage": "Return to your casino to start a new session.",
+    "endedTitle": "Session ended"
+  },
+  "canvasError": {
+    "title": "Something went wrong",
+    "message": "The game canvas crashed unexpectedly. Reload to try again.",
+    "webglTitle": "Graphics unavailable",
+    "webglMessage": "Your browser can't render the game canvas. Try updating your browser or enabling hardware acceleration.",
+    "reload": "Reload"
+  },
+  "offline": {
+    "message": "You're offline. Check your connection.",
+    "reconnecting": "Reconnecting to game server…"
+  },
+  "fairness": {
+    "title": "Provably Fair",
+    "subtitle": "Verify any round's outcome",
+    "currentRound": "Current Round",
+    "serverSeedHash": "Server Seed Hash",
+    "commitment": "This hash was published before betting opened",
+    "seedRevealed": "Seed Revealed",
+    "roundInProgress": "Round in progress — seed will be revealed after settlement",
+    "waitingForRound": "Waiting for round to start…",
+    "howItWorks": "How It Works",
+    "step1": "Before betting opens, the server generates a secret seed and publishes its SHA-256 hash",
+    "step2": "Players place bets. The outcome is already determined by the seed",
+    "step3": "After the round, the actual seed is revealed. You can verify the hash matches and recompute the outcome",
+    "verified": "Verified",
+    "verify": "Verify this round",
+    "verifyRound": "Open Proof",
+    "badge": "Provably Fair"
+  },
+  "history": {
+    "title": "History",
+    "lastResult": "Last Result",
+    "hotStreak": "Hot Streak",
+    "consecutive": "{{count}} in a row",
+    "round": "Round",
+    "dice": "Dice",
+    "sum": "Sum",
+    "side": "Side"
+  },
+  "betControls": {
+    "recentBets": "Recent Bets",
+    "noBets": "No bets yet"
+  }
+}
