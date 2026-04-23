@@ -1,0 +1,171 @@
+/* ============================================================
+   KETAPOLA — Design Tokens
+   Shared CSS custom properties consumed by UI components that
+   were ported from the B2C repo. Keep roughly in sync with
+   ../../../ketapola/ketapola-game/src/styles/variables.css
+   ============================================================ */
+
+:root {
+  /* ── Background ─────────────────────────────────────────── */
+  --color-bg-deep: #06060f;
+  --color-bg-scene: #0d0d1e;
+  --color-bg-elevated: #12122a;
+
+  /* ── Gold (primary accent) ──────────────────────────────── */
+  --color-gold-primary: #c9a84c;
+  --color-gold-light: #e8c96a;
+  --color-gold-dim: #7a6030;
+  --color-gold-glow: rgba(201, 168, 76, 0.35);
+  --color-gold-gradient: linear-gradient(135deg, #c9a84c 0%, #e8c96a 50%, #c9a84c 100%);
+  --color-gold-gradient-h: linear-gradient(
+    90deg,
+    #7a6030 0%,
+    #c9a84c 30%,
+    #e8c96a 50%,
+    #c9a84c 70%,
+    #7a6030 100%
+  );
+
+  /* ── LOW side (blue) ────────────────────────────────────── */
+  --color-low-primary: #4ab3f4;
+  --color-low-light: #6cc8ff;
+  --color-low-dim: #2a7ab0;
+  --color-low-bg: #0d2a45;
+  --color-low-glow: rgba(74, 179, 244, 0.35);
+
+  /* ── HIGH side (orange) ─────────────────────────────────── */
+  --color-high-primary: #f4844a;
+  --color-high-light: #ff9e6c;
+  --color-high-dim: #b05a2a;
+  --color-high-bg: #3a1a0d;
+  --color-high-glow: rgba(244, 132, 74, 0.35);
+
+  /* ── Panels ─────────────────────────────────────────────── */
+  --color-panel-bg: #0f0f1e;
+  --color-panel-bg-alpha: rgba(15, 15, 30, 0.85);
+  --color-panel-border: #1e1e38;
+  --color-panel-border-light: #2a2a50;
+
+  /* ── Text ───────────────────────────────────────────────── */
+  --color-text-primary: #f0f0f8;
+  --color-text-secondary: #b0b0c8;
+  --color-text-muted: #555580;
+  --color-text-gold: #e8c96a;
+
+  /* ── Status ─────────────────────────────────────────────── */
+  --color-win: #4af4a0;
+  --color-win-glow: rgba(74, 244, 160, 0.4);
+  --color-lose: #f44a4a;
+  --color-lose-glow: rgba(244, 74, 74, 0.4);
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --font-display: 'Cinzel Decorative', serif;
+  --font-ui: 'Rajdhani', 'Segoe UI', sans-serif;
+  --font-numbers: 'Orbitron', 'DM Sans', sans-serif;
+  --font-body: 'DM Sans', 'Segoe UI', sans-serif;
+
+  /* ── Font Sizes ─────────────────────────────────────────── */
+  --text-xs: 0.675rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.925rem;
+  --text-md: 1.05rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+  --text-4xl: 3.5rem;
+
+  /* ── Spacing ────────────────────────────────────────────── */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+
+  /* ── Borders & Radii ────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ── Shadows ────────────────────────────────────────────── */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow-gold: 0 0 20px rgba(201, 168, 76, 0.3), 0 0 60px rgba(201, 168, 76, 0.1);
+  --shadow-glow-blue: 0 0 20px rgba(74, 179, 244, 0.3), 0 0 60px rgba(74, 179, 244, 0.1);
+  --shadow-glow-orange: 0 0 20px rgba(244, 132, 74, 0.3), 0 0 60px rgba(244, 132, 74, 0.1);
+  --shadow-glow-win: 0 0 20px rgba(74, 244, 160, 0.3), 0 0 60px rgba(74, 244, 160, 0.1);
+
+  /* ── Transitions ────────────────────────────────────────── */
+  --transition-fast: 180ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 400ms ease;
+
+  /* ── Z-Index Layers ─────────────────────────────────────── */
+  --z-canvas: 1;
+  --z-panel: 10;
+  --z-controls: 20;
+  --z-header: 30;
+  --z-toast: 50;
+  --z-modal: 60;
+  --z-tooltip: 70;
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  --header-height: 56px;
+  --left-panel-width: 300px;
+  --right-panel-width: 300px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Shared keyframes used across ported UI components.
+   ────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 16px rgba(201, 168, 76, 0.2); }
+  50% { box-shadow: 0 0 28px rgba(201, 168, 76, 0.4); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+}
