@@ -1,0 +1,252 @@
+/* Global stylesheet for the player iframe. Base layout + utility classes.
+   Component-specific styles live next to each component in src/ui/*.css. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  background: var(--color-bg-deep);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* ── Page shell ───────────────────────────────────────────────────── */
+
+.game-page {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg-deep);
+}
+
+.game-page__body {
+  display: flex;
+  flex: 1;
+  margin-top: var(--header-height);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-page__canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+.game-page__canvas {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: var(--z-canvas);
+}
+
+.game-page__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* PixiJS container created by the GameCanvas component — fills the area */
+.game-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-canvas);
+}
+
+.game-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.game-canvas__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-lose);
+  font-size: var(--text-sm);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+/* ── Overlays (paused / reconnecting) ─────────────────────────────── */
+
+.game-page__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: calc(var(--z-controls) + 5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.game-page__overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.game-page__overlay.pause {
+  background: rgba(6, 6, 15, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.game-page__overlay.disconnected {
+  background: rgba(6, 6, 15, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.game-page__overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.game-page__overlay-icon {
+  font-family: var(--font-numbers);
+  font-size: var(--text-4xl);
+  font-weight: 900;
+  color: var(--color-gold-primary);
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 30px var(--color-gold-glow);
+}
+
+.game-page__overlay-text {
+  font-family: var(--font-ui);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.game-page__overlay-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--color-panel-border);
+  border-top-color: var(--color-gold-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Utility classes used by ported components ───────────────────── */
+
+.font-numbers {
+  font-family: var(--font-numbers);
+}
+
+.glass-panel {
+  background: var(--color-panel-bg-alpha);
+  border: 1px solid var(--color-panel-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.text-win { color: var(--color-win); }
+.text-lose { color: var(--color-lose); }
+.text-muted { color: var(--color-text-muted); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.badge-low {
+  color: var(--color-low-primary);
+  background: rgba(74, 179, 244, 0.1);
+}
+
+.badge-high {
+  color: var(--color-high-primary);
+  background: rgba(244, 132, 74, 0.1);
+}
+
+/* ── Error screen (used on missing launch params / terminated session) */
+
+.error-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-xl);
+  background: var(--color-bg-deep);
+}
+
+.error-screen__card {
+  max-width: 360px;
+  padding: var(--space-2xl) var(--space-xl);
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.error-screen__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--space-md);
+  border-radius: 50%;
+  background: rgba(244, 74, 74, 0.12);
+  color: var(--color-lose);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.error-screen__title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.error-screen__message {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* ── Responsive: stack on narrow viewports ───────────────────────── */
+
+@media (max-width: 1024px) {
+  .game-page__body {
+    flex-direction: column;
+  }
+}
