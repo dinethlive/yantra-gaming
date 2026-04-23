@@ -1,0 +1,111 @@
+.win-toast {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-lg);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.win-toast.exiting {
+  animation: fadeOut 0.4s ease forwards;
+}
+
+.win-toast__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-3xl);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(201, 168, 76, 0.15) 0%,
+    rgba(6, 6, 15, 0.85) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid var(--color-gold-primary);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 0 60px rgba(201, 168, 76, 0.3),
+    0 0 120px rgba(201, 168, 76, 0.1),
+    inset 0 0 40px rgba(201, 168, 76, 0.05);
+  animation: winCardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes winCardAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.win-toast__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  z-index: 2;
+  text-align: center;
+}
+
+.win-toast__label {
+  font-family: var(--font-display), serif;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-gold-light);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 20px var(--color-gold-glow);
+}
+
+.win-toast__amount {
+  font-family: var(--font-numbers), sans-serif;
+  font-size: var(--text-3xl);
+  font-weight: 900;
+  background: var(--color-gold-gradient-h);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 1.5s linear infinite;
+}
+
+.win-toast__particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.win-toast__particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-gold-light);
+  box-shadow: 0 0 8px var(--color-gold-glow);
+  animation: particleBurst 1.2s var(--delay, 0s) ease-out forwards;
+}
+
+@keyframes particleBurst {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateX(var(--distance, 80px))
+      scale(0);
+    opacity: 0;
+  }
+}
