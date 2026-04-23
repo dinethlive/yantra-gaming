@@ -1,0 +1,105 @@
+.rg-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--color-surface-1, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 10px;
+}
+
+.rg-panel__title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.55));
+}
+
+.rg-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rg-limit__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.rg-limit__row--footnote {
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.4));
+  font-size: 11px;
+}
+
+.rg-limit__label {
+  color: var(--color-text-default, rgba(255, 255, 255, 0.75));
+}
+
+.rg-limit__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text-emphasis, rgba(255, 255, 255, 0.95));
+}
+
+.rg-limit__track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.rg-limit__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(96, 196, 143, 0.95), rgba(96, 196, 143, 0.75));
+  transition: width 0.35s ease;
+}
+
+.rg-limit--warn .rg-limit__bar {
+  background: linear-gradient(90deg, rgba(235, 176, 80, 0.95), rgba(235, 176, 80, 0.75));
+}
+
+.rg-limit--critical .rg-limit__bar {
+  background: linear-gradient(90deg, rgba(231, 95, 95, 0.95), rgba(231, 95, 95, 0.75));
+}
+
+.rg-panel__time {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+
+.rg-panel__time-label {
+  font-size: 12px;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.55));
+}
+
+.rg-panel__time-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text-emphasis, rgba(255, 255, 255, 0.95));
+}
+
+.rg-panel__time-value--critical {
+  color: rgba(231, 95, 95, 0.95);
+  animation: rg-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes rg-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.rg-panel__footnote {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.35));
+}
