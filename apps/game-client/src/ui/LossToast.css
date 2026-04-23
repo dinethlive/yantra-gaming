@@ -1,0 +1,118 @@
+.loss-toast {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-lg);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  animation: lossToastFadeIn 0.3s ease;
+}
+
+.loss-toast.exiting {
+  animation: fadeOut 0.4s ease forwards;
+}
+
+@keyframes lossToastFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.loss-toast__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-3xl);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(244, 74, 74, 0.15) 0%,
+    rgba(6, 6, 15, 0.85) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid var(--color-lose);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 0 60px rgba(244, 74, 74, 0.3),
+    0 0 120px rgba(244, 74, 74, 0.1),
+    inset 0 0 40px rgba(244, 74, 74, 0.05);
+  animation: lossCardAppear 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+  overflow: hidden;
+}
+
+@keyframes lossCardAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.loss-toast__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  z-index: 2;
+  text-align: center;
+}
+
+.loss-toast__label {
+  font-family: var(--font-display), serif;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.loss-toast__amount {
+  font-family: var(--font-numbers), sans-serif;
+  font-size: var(--text-3xl);
+  font-weight: 900;
+  color: var(--color-lose);
+  text-shadow: 0 0 20px var(--color-lose-glow);
+}
+
+.loss-toast__shards {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.loss-toast__shard {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, var(--color-lose) 0%, transparent 100%);
+  opacity: 0;
+  animation: shardFall 1s var(--delay, 0s) ease-in forwards;
+  transform: translateX(var(--x-offset, 0px));
+}
+
+@keyframes shardFall {
+  0% {
+    opacity: 0.6;
+    top: -4px;
+    transform: translateX(var(--x-offset, 0px)) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    top: 100%;
+    transform: translateX(var(--x-offset, 0px)) scaleY(0.5);
+  }
+}
