@@ -1,0 +1,169 @@
+.game-splash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-deep);
+  z-index: calc(var(--z-controls) + 3);
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+
+.game-splash--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.game-splash__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-splash__bg-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(201, 168, 76, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse at 70% 80%, rgba(74, 179, 244, 0.06) 0%, transparent 55%),
+    var(--color-bg-deep);
+  background-size: 200% 200%;
+  animation: gradientShift 12s ease infinite;
+}
+
+.game-splash__bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  animation: float 8s ease-in-out infinite;
+}
+
+.game-splash__bg-orb--a {
+  width: 340px;
+  height: 340px;
+  top: -90px;
+  left: -60px;
+  background: rgba(201, 168, 76, 0.09);
+}
+
+.game-splash__bg-orb--b {
+  width: 300px;
+  height: 300px;
+  bottom: -80px;
+  right: -50px;
+  background: rgba(74, 179, 244, 0.06);
+  animation-delay: -3s;
+}
+
+.game-splash__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+  animation: fadeInUp 0.4s ease;
+}
+
+.game-splash__dice {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-sm);
+  animation: float 3.2s ease-in-out infinite;
+}
+
+.game-splash__dice-face {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #2a2a44 0%, #1a1a2e 100%);
+  border: 1.5px solid rgba(201, 168, 76, 0.45);
+  border-radius: 12px;
+  box-shadow:
+    0 0 28px rgba(201, 168, 76, 0.22),
+    inset 0 0 12px rgba(201, 168, 76, 0.08);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 10px;
+  gap: 4px;
+}
+
+.game-splash__dice-face span {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--color-gold-primary);
+  box-shadow: 0 0 6px rgba(201, 168, 76, 0.6);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+.game-splash__dice-face span:nth-child(1) { grid-column: 1; grid-row: 1; }
+.game-splash__dice-face span:nth-child(2) { grid-column: 3; grid-row: 1; }
+.game-splash__dice-face span:nth-child(3) { grid-column: 2; grid-row: 2; animation-delay: 0.3s; }
+.game-splash__dice-face span:nth-child(4) { grid-column: 1; grid-row: 3; }
+.game-splash__dice-face span:nth-child(5) { grid-column: 3; grid-row: 3; }
+
+.game-splash__logo {
+  font-family: var(--font-display), serif;
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  background: var(--color-gold-gradient-h);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+  margin: 0;
+}
+
+.game-splash__tagline {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+.game-splash__loader {
+  width: 180px;
+  height: 3px;
+  margin-top: var(--space-md);
+  background: rgba(201, 168, 76, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.game-splash__loader-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--color-gold-primary), transparent);
+  animation: splashLoaderSweep 1.4s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+@keyframes splashLoaderSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.game-splash__label {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin: 0;
+}
