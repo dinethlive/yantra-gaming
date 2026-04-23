@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "submissionStatus": "pre-cert — not submitted to any lab; derivations track games/crash-minimal/src/ as of the current commit",
+  "game": {
+    "code": "crash-minimal",
+    "displayName": "Crash Minimal",
+    "category": "crash",
+    "numberOfOutcomes": "continuous",
+    "roundModel": "single-multiplier",
+    "provablyFair": true,
+    "rngAlgorithm": "HMAC-SHA256(serverSeed, clientSeed + \":\" + nonce); first 52 bits / 2^52 as uniform[0,1); pre-roll bust at u<houseEdge; else crashMultiplier = floor(100/(1-((u-h)/(1-h)))) / 100",
+    "rngPrimitivesSource": "packages/rng-core/src/index.ts",
+    "gameOutcomeSource": "games/crash-minimal/src/outcome.ts",
+    "testVectorsSource": "games/crash-minimal/fixtures/rng-test-vectors.json",
+    "testVectorsHumanReadable": "games/crash-minimal/docs/rng-test-vectors.md"
+  },
+  "selection": {
+    "shape": { "cashoutMultiplier": "number in [1.01, 10000]" },
+    "source": "games/crash-minimal/src/selection.ts"
+  },
+  "defaultConfig": {
+    "houseEdge": 0.01,
+    "maxMultiplier": 1000
+  },
+  "probabilities": {
+    "bustRate": "P(crashMultiplier = 1.00) = houseEdge",
+    "tailSurvival": "P(crashMultiplier >= K) = (1 - houseEdge) / K  for K in (1.00, maxMultiplier]"
+  },
+  "payouts": {
+    "formula": "gross = stake * cashoutMultiplier if crashMultiplier >= cashoutMultiplier else 0; net = max(0, gross - commissionMicro)",
+    "source": "games/crash-minimal/src/settle.ts"
+  },
+  "rtp": {
+    "formula": "RTP(K) = K * (1 - houseEdge) * (1/K) = 1 - houseEdge  — identical for every cashout",
+    "atDefaultConfig": {
+      "theoretical": 0.99,
+      "theoreticalPct": "99.00%",
+      "houseEdge": 0.01,
+      "houseEdgePct": "1.00%",
+      "tailTruncationError": "< 0.001 (below measurement noise at default maxMultiplier=1000)"
+    },
+    "regressionGate": {
+      "source": "tests/games/crash-minimal/rtp-regression.spec.ts",
+      "rounds": 10000000,
+      "toleranceAbs": 0.005,
+      "cashoutBuckets": [1.50, 2.00, 5.00, 10.00],
+      "status": "TBD — run before submission"
+    }
+  },
+  "volatility": {
+    "hitFrequencyFormula": "P(win at cashout K) = (1 - houseEdge) / K",
+    "varianceFormula": "Var(return per unit stake at K) = K * (1 - houseEdge) - (1 - houseEdge)^2",
+    "classification": "player-selectable (low → very high depending on cashout choice)"
+  },
+  "maxExposurePerBet": {
+    "formula": "maxBetMicro * maxMultiplier - commissionMicro",
+    "notes": "Bounded by maxMultiplier clamp. Operators cap via maxBetMicro."
+  },
+  "changeManagement": {
+    "regatedFiles": [
+      "packages/rng-core/src/index.ts",
+      "games/crash-minimal/src/outcome.ts",
+      "games/crash-minimal/src/settle.ts",
+      "games/crash-minimal/src/config.ts",
+      "games/crash-minimal/docs/par-sheet.md",
+      "games/crash-minimal/docs/par-sheet.json",
+      "games/crash-minimal/docs/rng-test-vectors.md",
+      "games/crash-minimal/fixtures/rng-test-vectors.json"
+    ],
+    "regatedConfigFields": [
+      "OperatorGameConfig.configJson.houseEdge",
+      "OperatorGameConfig.configJson.maxMultiplier",
+      "OperatorGameConfig.commissionMicro",
+      "OperatorGameConfig.minBetMicro",
+      "OperatorGameConfig.maxBetMicro"
+    ],
+    "ciGate": "rng-change-gate requires per-scope attestation in PR body: CERT-ATTEST-CORE for packages/rng-core/src/, CERT-ATTEST-CRASH_MINIMAL for games/crash-minimal/src/{outcome,settle,config}.ts"
+  },
+  "specVersion": "0.1.0-draft",
+  "lastUpdated": "2026-04-24"
+}
