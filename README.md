@@ -172,16 +172,14 @@ flowchart TB
     engine --> rglimits
     engine & walletclient & audit --> db
 
-    classDef core fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
-    classDef plugin fill:#2da44e,stroke:#1a7f37,stroke-width:2px,color:#fff;
-    classDef ext fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
-    classDef shared fill:#8250df,stroke:#6639ba,stroke-width:2px,color:#fff;
-    classDef store fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
-    class engine,socket,registry,walletclient,audit,rglimits core;
-    class dice,crash,future plugin;
-    class iframe,wallet,backoffice ext;
-    class contract,rngcore,walletspec shared;
-    class db store;
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class engine,socket,registry,walletclient,audit,rglimits primary;
+    class dice,crash,future secondary;
+    class iframe,wallet,backoffice tertiary;
+    class contract,rngcore,walletspec,db store;
 ```
 
 See [`docs/architecture.md`](./docs/architecture.md) for C4-level diagrams, state machines, and sequence diagrams.

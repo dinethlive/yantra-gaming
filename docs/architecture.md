@@ -35,12 +35,14 @@ flowchart LR
     rgs -- "OTLP / Prom scrape" --> obs
     rgs -. "cert submission<br/>(artefacts only)" .-> cert
 
-    classDef ext fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
-    classDef sys fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
-    classDef ds fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
-    class operator,player ext;
-    class rgs sys;
-    class cert,obs ds;
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class rgs primary;
+    class operator secondary;
+    class player tertiary;
+    class cert,obs store;
 ```
 
 **Trust boundaries:**
@@ -98,12 +100,12 @@ flowchart TB
     sdk -.->|"import"| spec
     mock -.->|"import"| spec
 
-    classDef box fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
-    classDef ext fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
-    classDef ds fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
-    class rgssrv,gc,portal,mock,sdk,spec box;
-    class opwallet,oplobby ext;
-    class db,otel ds;
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class rgssrv,gc,portal,mock,sdk,spec primary;
+    class opwallet,oplobby secondary;
+    class db,otel store;
 ```
 
 ---
@@ -199,14 +201,14 @@ flowchart TD
     rbresp -- "other" --> rbretry["increment attempts<br/>alert if > 5min stuck"]
     rbretry --> retry
 
-    classDef ok fill:#2da44e,stroke:#1a7f37,stroke-width:2px,color:#fff;
-    classDef err fill:#cf222e,stroke:#a40e26,stroke-width:2px,color:#fff;
-    classDef retry fill:#bc4c00,stroke:#8a3800,stroke-width:2px,color:#fff;
-    classDef decide fill:#9a6700,stroke:#633c01,stroke-width:2px,color:#fff;
-    class ok,dup,rbok ok;
-    class reject err;
-    class uncertain,retry,rbcall,rbretry retry;
-    class resp,rbresp decide;
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class ok,dup,rbok primary;
+    class reject secondary;
+    class uncertain,retry,rbcall,rbretry tertiary;
+    class resp,rbresp store;
 ```
 
 Classifier rules are tabulated in
@@ -233,12 +235,12 @@ flowchart TD
     markR --> done["pending job runner<br/>drains in background"]
     markV --> done
 
-    classDef decide fill:#9a6700,stroke:#633c01,stroke-width:2px,color:#fff;
-    classDef act fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
-    classDef warn fill:#bc4c00,stroke:#8a3800,stroke-width:2px,color:#fff;
-    class iter,outcome decide;
-    class winners,enqueuewin,markR,done act;
-    class void,rollbet,markV warn;
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class iter,outcome store;
+    class winners,enqueuewin,markR,done primary;
+    class void,rollbet,markV secondary;
 ```
 
 **Invariants preserved:**
@@ -272,14 +274,14 @@ flowchart TB
     wc2 --> db
     wc3 --> db
 
-    classDef op1 fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
-    classDef op2 fill:#bc4c00,stroke:#8a3800,stroke-width:2px,color:#fff;
-    classDef infra fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
-    classDef ds fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
-    class eng1,eng2,wc1,wc2 op1;
-    class eng3,wc3 op2;
-    class req,auth,opid,reg infra;
-    class db ds;
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class eng1,eng2,wc1,wc2 primary;
+    class eng3,wc3 secondary;
+    class req,auth,opid,reg tertiary;
+    class db store;
 ```
 
 **Isolation levers:**

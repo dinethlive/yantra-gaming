@@ -128,42 +128,46 @@ The design principles below are the load-bearing ones, each one has a file it li
 
 ## 4. Reference architecture
 
-```
-                           ┌───────────────────────────────────┐
-                           │          Operator (B2C)            │
-                           │  ─────────────────────────────────  │
-                           │   Player auth + KYC + wallet        │
-                           │   Deposits / withdrawals            │
-                           │   Bonuses                           │
-                           │   Responsible-gambling tools        │
-                           │                                     │
-                           │  Wallet Callback API (HTTP/JSON)    │
-                           │   POST /wallet/balance              │
-                           │   POST /wallet/bet                  │
-                           │   POST /wallet/win                  │
-                           │   POST /wallet/rollback             │
-                           └───────────────┬─────────────────────┘
-                                           │  (signed, HMAC-SHA256)
-                                           ▼
- ┌──────────────┐   1. GET launch URL ┌───────────────────────────────┐
- │   Player     │ ◀────────────────── │     Yantra Gaming RGS         │
- │   browser    │                     │  ─────────────────────────    │
- │              │ ──── 2. iframe ──▶ │  Game launch API (v1/session) │
- │  ┌────────┐  │                     │  Game engine (round loop)     │
- │  │ iframe │◀─┼─ 3. WebSocket ───▶ │  Wallet adapter → operator    │
- │  │ game   │  │                     │  RNG + provably-fair proofs   │
- │  └────────┘  │                     │  Round/Bet/WalletCall ledger  │
- └──────────────┘                     │  Operator back-office API     │
-                                      │  Reconciliation + reports     │
-                                      │  OpenTelemetry / Prometheus   │
-                                      └───────────────┬───────────────┘
-                                                      │
-                                      ┌───────────────▼───────────────┐
-                                      │  Postgres (multi-tenant)      │
-                                      │  rounds, bets, wallet_calls,  │
-                                      │  operator_configs, pending    │
-                                      │  wallet jobs, idempotency     │
-                                      └───────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph player["Player browser"]
+        iframe["iframe (game)"]
+    end
+
+    subgraph op["Operator (B2C)"]
+        opstack["Player auth + KYC + wallet<br/>Deposits / withdrawals<br/>Bonuses<br/>Responsible-gambling tools"]
+        opwallet["Wallet Callback API (HTTP/JSON)<br/>POST /wallet/balance<br/>POST /wallet/bet<br/>POST /wallet/win<br/>POST /wallet/rollback"]
+    end
+
+    subgraph rgs["Yantra Gaming RGS"]
+        api["Game launch API (v1/session)"]
+        engine["Game engine (round loop)"]
+        adapter["Wallet adapter to operator"]
+        rng["RNG + provably-fair proofs"]
+        ledger["Round / Bet / WalletCall ledger"]
+        admin["Operator back-office API"]
+        recon["Reconciliation + reports"]
+        otel["OpenTelemetry / Prometheus"]
+    end
+
+    db[("Postgres (multi-tenant)<br/>rounds, bets, wallet_calls,<br/>operator_configs, pending<br/>wallet jobs, idempotency")]
+
+    iframe -- "1. GET launch URL" --> api
+    iframe -- "2. iframe src" --> api
+    iframe <-- "3. WebSocket" --> engine
+    adapter -- "signed, HMAC-SHA256" --> opwallet
+    engine --> ledger
+    ledger --> db
+    recon --> db
+
+    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
+    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
+    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
+    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
+    class api,engine,adapter,rng,ledger,admin,recon,otel primary;
+    class opstack,opwallet secondary;
+    class iframe tertiary;
+    class db store;
 ```
 
 Two design properties that drive everything else:
@@ -224,35 +228,40 @@ Error codes are standardised in `packages/wallet-spec`. The critical classifier 
 
 ## 7. Game launch flow
 
-```
- Player     Operator frontend   Operator backend    Yantra Gaming     Operator wallet
-   │                │                │                │                    │
-   │── click game ─▶│                │                │                    │
-   │                │── POST /launch▶│                │                    │
-   │                │                │── POST /v1/session ▶│               │
-   │                │                │  (playerRef,         │               │
-   │                │                │   currency, lang,    │               │
-   │                │                │   jurisdiction,      │               │
-   │                │                │   returnUrl,         │               │
-   │                │                │   operatorId, sig)   │               │
-   │                │                │                │── create session ─▶│
-   │                │                │◀── {launchUrl,  │                    │
-   │                │                │     sessionToken}                    │
-   │                │◀── {launchUrl}─│                                      │
-   │◀── redirect / iframe src=launchUrl ──────────────────                  │
-   │                                                 │                      │
-   │── GET launchUrl ────────────────────────────────▶                      │
-   │◀── HTML + JS bundle + socket handshake ─────────                       │
-   │                                                 │                      │
-   │── place_bet (socket) ──────────────────────────▶│                     │
-   │                                                 │── POST /wallet/bet ▶│
-   │                                                 │◀── RS_OK, balance ──│
-   │◀── bet_placed / balance_update ─────────────────│                     │
-   │                                                 │ … dice roll, RNG … │
-   │◀── round_result ────────────────────────────────│                     │
-   │                                                 │── POST /wallet/win▶│ (if winner)
-   │                                                 │◀── RS_OK, balance ──│
-   │◀── balance_update ──────────────────────────────│                     │
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Player
+    participant OF as Operator frontend
+    participant OB as Operator backend
+    participant R as Yantra Gaming
+    participant OW as Operator wallet
+
+    P->>OF: click game
+    OF->>OB: POST /launch
+    OB->>R: POST /v1/session<br/>(playerRef, currency, lang,<br/>jurisdiction, returnUrl,<br/>operatorId, sig)
+    R->>R: create session
+    R-->>OB: {launchUrl, sessionToken}
+    OB-->>OF: {launchUrl}
+    OF-->>P: redirect / iframe src=launchUrl
+
+    P->>R: GET launchUrl
+    R-->>P: HTML + JS bundle + socket handshake
+
+    P->>R: place_bet (socket)
+    R->>OW: POST /wallet/bet
+    OW-->>R: RS_OK, balance
+    R-->>P: bet_placed / balance_update
+
+    Note over R: dice roll, RNG
+
+    R-->>P: round_result
+
+    alt winner
+        R->>OW: POST /wallet/win
+        OW-->>R: RS_OK, balance
+        R-->>P: balance_update
+    end
 ```
 
 Session tokens are short-lived JWTs (≤ 60 min) bound to one player + one game + one currency. See `apps/rgs-server/src/routes/session.ts` for the actual implementation.
