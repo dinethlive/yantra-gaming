@@ -1,0 +1,590 @@
+openapi: 3.1.0
+info:
+  title: Yantra Gaming RGS
+  version: 1.0.0
+  summary: Multi-tenant B2B iGaming Remote Gaming Server — wire contract.
+  description: |
+    Machine-readable contract for the Yantra RGS. Covers:
+
+    - **Inbound** (operator → RGS): `/v1/session`, `/v1/rounds/{id}/proof`.
+    - **Outbound** (RGS → operator): `/wallet/balance`, `/wallet/bet`,
+      `/wallet/win`, `/wallet/rollback` — operators implement these on
+      their side; the schema lets operator-side servers be generated
+      directly from this file.
+    - **Webhooks** (RGS → operator): `round.settled`, `session.terminated`,
+      and friends. Signed per `docs/webhook-signature.md`.
+
+    All requests are HMAC-SHA256 signed. All money amounts are decimal
+    strings of BigInt micro-units (×100,000). See `docs/wallet-api.md` for
+    the human-readable narrative and `docs/integration-test-vectors.md`
+    for hand-computed fixtures.
+  contact:
+    name: Yantra Gaming
+    url: https://github.com/
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://rgs.yantra.example
+    description: Production (placeholder — the real URL is per-deployment)
+  - url: https://sandbox.yantra.example
+    description: Hosted sandbox (planned v1.1 — see docs/sandbox.md)
+  - url: http://localhost:4500
+    description: Local development (`bun run dev:core`)
+
+tags:
+  - name: session
+    description: Game-launch session lifecycle
+  - name: rounds
+    description: Round audit + provably-fair proofs
+  - name: wallet
+    description: Operator-implemented wallet callbacks (outbound from RGS)
+  - name: webhooks
+    description: Outbound event notifications (signed)
+
+security:
+  - HmacSignature: []
+
+paths:
+  /v1/session:
+    post:
+      tags: [session]
+      operationId: createSession
+      summary: Mint a player launch session.
+      description: |
+        Called by the operator's backend (server-to-server) to obtain a
+        launch URL + session JWT. The player browser then loads the
+        returned launch URL, which bootstraps the game iframe and
+        connects via Socket.IO using the JWT.
+
+        Single-player, single-currency, ≤ 60 min TTL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      parameters:
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Session minted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateSessionResponse' }
+        '401': { $ref: '#/components/responses/SignatureError' }
+        '422':
+          description: Session rejected (self-excluded, KYC not verified, jurisdiction mismatch, …).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionRejection' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v1/rounds/{roundId}/proof:
+    get:
+      tags: [rounds]
+      operationId: getRoundProof
+      summary: Fetch the provably-fair proof for a settled round.
+      description: |
+        Public (authenticated with the operator signature). Returns the
+        revealed `serverSeed`, the `clientSeed`, the `nonce`, and the
+        outcome so the caller can recompute and verify
+        `HMAC(serverSeed, clientSeed:nonce) → outcome`.
+
+        See `docs/provably-fair.md` for the 20-line verifier.
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Proof payload.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoundProof' }
+        '404': { description: Round not found or not yet settled. }
+        '401': { $ref: '#/components/responses/SignatureError' }
+
+  /v1/rounds/{roundId}/dispute-pack:
+    get:
+      tags: [rounds]
+      operationId: getDisputePack
+      summary: Fetch the full settlement trace for a round (planned v1.1).
+      description: |
+        Returns a signed zip containing the `Round` row, all `Bet` rows,
+        all `WalletCall` rows, the RNG proof, the relevant PAR-sheet
+        excerpt, and a manifest. Used by regulators, arbitrators, and
+        player-dispute flows.
+
+        **Planned for v1.1** — current release returns HTTP 501.
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Signed dispute-pack zip.
+          content:
+            application/zip: {}
+        '501':
+          description: Not implemented in current release.
+
+  /wallet/balance:
+    post:
+      tags: [wallet]
+      operationId: walletBalance
+      summary: (Operator implements) Read player balance, no ledger effect.
+      description: |
+        **Operator-implemented endpoint** called by the RGS. Included in
+        this spec so operator-side servers can be generated directly
+        (e.g. with `openapi-generator`).
+      servers:
+        - url: https://casino.example.com/wallet
+          description: Operator wallet base URL (per-operator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BalanceRequest' }
+      parameters:
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Balance response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletResponse' }
+
+  /wallet/bet:
+    post:
+      tags: [wallet]
+      operationId: walletBet
+      summary: (Operator implements) Debit a stake.
+      servers:
+        - url: https://casino.example.com/wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BetRequest' }
+      parameters:
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Bet response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletResponse' }
+
+  /wallet/win:
+    post:
+      tags: [wallet]
+      operationId: walletWin
+      summary: (Operator implements) Credit a payout.
+      servers:
+        - url: https://casino.example.com/wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WinRequest' }
+      parameters:
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Win response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletResponse' }
+
+  /wallet/rollback:
+    post:
+      tags: [wallet]
+      operationId: walletRollback
+      summary: (Operator implements) Reverse a previous bet or win.
+      servers:
+        - url: https://casino.example.com/wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RollbackRequest' }
+      parameters:
+        - $ref: '#/components/parameters/KeyId'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Signature'
+      responses:
+        '200':
+          description: Rollback response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletResponse' }
+
+webhooks:
+  roundSettled:
+    post:
+      tags: [webhooks]
+      summary: Emitted when a round reaches SETTLED state.
+      description: See `docs/webhook-signature.md` for verification.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/WebhookEnvelope'
+                - properties:
+                    eventType: { const: 'round.settled' }
+                    data: { $ref: '#/components/schemas/RoundSettledData' }
+      responses:
+        '2XX': { description: Acknowledged. }
+        default: { description: Any non-2xx triggers retry. }
+
+  roundVoided:
+    post:
+      tags: [webhooks]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/WebhookEnvelope'
+                - properties:
+                    eventType: { const: 'round.voided' }
+      responses: { '2XX': { description: Acknowledged. } }
+
+  sessionTerminated:
+    post:
+      tags: [webhooks]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/WebhookEnvelope'
+                - properties:
+                    eventType: { const: 'session.terminated' }
+      responses: { '2XX': { description: Acknowledged. } }
+
+  reconciliationDiscrepancy:
+    post:
+      tags: [webhooks]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/WebhookEnvelope'
+                - properties:
+                    eventType: { const: 'reconciliation.discrepancy' }
+      responses: { '2XX': { description: Acknowledged. } }
+
+components:
+  securitySchemes:
+    HmacSignature:
+      type: apiKey
+      in: header
+      name: X-Yantra-Signature
+      description: |
+        HMAC-SHA256 over the canonical string
+        `METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`, base64 encoded. Paired with
+        `X-Yantra-Key-Id` (credential id) and `X-Yantra-Timestamp` (unix
+        seconds, ±30s replay window). See `docs/security.md`.
+
+  parameters:
+    KeyId:
+      name: X-Yantra-Key-Id
+      in: header
+      required: true
+      schema: { type: string }
+      description: Credential id — maps to an `OperatorCredential` row.
+    Timestamp:
+      name: X-Yantra-Timestamp
+      in: header
+      required: true
+      schema: { type: integer, format: int64 }
+      description: Unix seconds at send time. ±30s window enforced.
+    Signature:
+      name: X-Yantra-Signature
+      in: header
+      required: true
+      schema: { type: string }
+      description: base64(HMAC-SHA256(secret, canonical)).
+
+  responses:
+    SignatureError:
+      description: Missing / invalid / replayed signature.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/WalletResponse' }
+    RateLimited:
+      description: Rate-limit exceeded — per-operator or global.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+
+  schemas:
+    MicroAmount:
+      type: string
+      pattern: '^-?[0-9]+$'
+      description: Decimal string of BigInt micro-units (×100,000).
+      examples: ['1000000', '250000']
+
+    Currency:
+      type: string
+      description: ISO 4217 or crypto symbol.
+      examples: ['LKR', 'USD', 'EUR', 'BRL', 'USDC']
+
+    Uuid:
+      type: string
+      format: uuid
+
+    PlayerRef:
+      type: string
+      description: Operator-opaque player identifier. MUST NOT be email / username.
+      minLength: 1
+
+    RsStatus:
+      type: string
+      enum:
+        - RS_OK
+        - RS_ERROR_UNKNOWN
+        - RS_ERROR_INVALID_TOKEN
+        - RS_ERROR_INVALID_SIGNATURE
+        - RS_ERROR_INVALID_PARTNER
+        - RS_ERROR_NOT_ENOUGH_MONEY
+        - RS_ERROR_USER_DISABLED
+        - RS_ERROR_TOKEN_EXPIRED
+        - RS_ERROR_WRONG_CURRENCY
+        - RS_ERROR_WRONG_SYNTAX
+        - RS_ERROR_WRONG_TYPES
+        - RS_ERROR_DUPLICATE_TRANSACTION
+        - RS_ERROR_TRANSACTION_DOES_NOT_EXIST
+        - RS_ERROR_LIMIT_REACHED
+        - RS_ERROR_TIMEOUT
+
+    BonusAttribution:
+      type: object
+      properties:
+        isBonus: { type: boolean }
+        bonusRef: { type: string }
+        wageringContributionMicro: { $ref: '#/components/schemas/MicroAmount' }
+
+    FxContext:
+      type: object
+      properties:
+        walletCurrency: { $ref: '#/components/schemas/Currency' }
+        fxRate: { type: string, pattern: '^[0-9]+(\.[0-9]+)?$' }
+        fxRateAt: { type: string, format: date-time }
+        fxRateSource: { type: string }
+
+    CreateSessionRequest:
+      type: object
+      required: [operatorId, playerRef, gameCode, currency, lang, jurisdiction]
+      properties:
+        operatorId: { type: string }
+        playerRef: { $ref: '#/components/schemas/PlayerRef' }
+        gameCode: { type: string, examples: ['ketapola-dice', 'crash-minimal'] }
+        currency: { $ref: '#/components/schemas/Currency' }
+        lang: { type: string, examples: ['en', 'si', 'ta', 'pt-BR'] }
+        jurisdiction: { type: string, examples: ['INTL', 'GB', 'DE', 'BR', 'ON-CA'] }
+        mode:
+          type: string
+          enum: [real, demo]
+          default: real
+        returnUrl: { type: string, format: uri }
+        clientSeed: { type: string }
+        rgLimits:
+          type: object
+          properties:
+            dailyLossMicro: { $ref: '#/components/schemas/MicroAmount' }
+            dailyWagerMicro: { $ref: '#/components/schemas/MicroAmount' }
+            sessionTimeSeconds: { type: integer, minimum: 60, maximum: 3600 }
+
+    CreateSessionResponse:
+      type: object
+      required: [sessionId, sessionToken, launchUrl, expiresAt, serverSeedHash]
+      properties:
+        sessionId: { $ref: '#/components/schemas/Uuid' }
+        sessionToken:
+          type: string
+          description: HS256 JWT; RS256 via JWKS planned for v1.1.
+        launchUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+        serverSeedHash: { type: string, description: SHA-256 hex of the revealed server seed. }
+
+    SessionRejection:
+      type: object
+      required: [status, reason]
+      properties:
+        status: { const: RS_ERROR_USER_DISABLED }
+        reason:
+          type: string
+          enum: [self_excluded, kyc_required, jurisdiction_blocked, currency_not_permitted, operator_suspended, rg_limit_set_too_loose]
+
+    WalletRequestCommon:
+      type: object
+      required: [requestUuid, operatorId, playerRef, currency, gameCode]
+      properties:
+        requestUuid: { $ref: '#/components/schemas/Uuid' }
+        operatorId: { type: string }
+        playerRef: { $ref: '#/components/schemas/PlayerRef' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        gameCode: { type: string }
+
+    BalanceRequest:
+      allOf:
+        - $ref: '#/components/schemas/WalletRequestCommon'
+
+    BetRequest:
+      allOf:
+        - $ref: '#/components/schemas/WalletRequestCommon'
+        - $ref: '#/components/schemas/BonusAttribution'
+        - $ref: '#/components/schemas/FxContext'
+        - type: object
+          required: [transactionUuid, amountMicro, roundId]
+          properties:
+            transactionUuid: { $ref: '#/components/schemas/Uuid' }
+            amountMicro: { $ref: '#/components/schemas/MicroAmount' }
+            roundId: { $ref: '#/components/schemas/Uuid' }
+            meta: { type: object, additionalProperties: true }
+
+    WinRequest:
+      allOf:
+        - $ref: '#/components/schemas/WalletRequestCommon'
+        - $ref: '#/components/schemas/BonusAttribution'
+        - $ref: '#/components/schemas/FxContext'
+        - type: object
+          required: [transactionUuid, referenceTransactionUuid, amountMicro, roundId]
+          properties:
+            transactionUuid: { $ref: '#/components/schemas/Uuid' }
+            referenceTransactionUuid: { $ref: '#/components/schemas/Uuid' }
+            amountMicro: { $ref: '#/components/schemas/MicroAmount' }
+            roundId: { $ref: '#/components/schemas/Uuid' }
+            jackpotContributionMicro: { $ref: '#/components/schemas/MicroAmount' }
+            meta: { type: object, additionalProperties: true }
+
+    RollbackRequest:
+      allOf:
+        - $ref: '#/components/schemas/WalletRequestCommon'
+        - type: object
+          required: [transactionUuid, referenceTransactionUuid]
+          properties:
+            transactionUuid: { $ref: '#/components/schemas/Uuid' }
+            referenceTransactionUuid: { $ref: '#/components/schemas/Uuid' }
+            roundId: { $ref: '#/components/schemas/Uuid' }
+            meta: { type: object, additionalProperties: true }
+
+    WalletResponse:
+      type: object
+      required: [status, requestUuid]
+      properties:
+        status: { $ref: '#/components/schemas/RsStatus' }
+        requestUuid: { $ref: '#/components/schemas/Uuid' }
+        balanceMicro: { $ref: '#/components/schemas/MicroAmount' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        message: { type: string }
+
+    RoundProof:
+      type: object
+      required: [roundId, gameCode, rngVersion, serverSeed, serverSeedHash, clientSeed, nonce, outcome]
+      properties:
+        roundId: { $ref: '#/components/schemas/Uuid' }
+        gameCode: { type: string }
+        rngVersion: { type: string, examples: ['ketapola-rng-v1', 'crash-rng-v1'] }
+        mathVersion: { type: string, examples: ['1.0.0'] }
+        serverSeed: { type: string, description: Revealed seed. }
+        serverSeedHash: { type: string, description: SHA-256 hex of the seed — must match the hash committed at session start. }
+        clientSeed: { type: string }
+        nonce: { type: integer, minimum: 0 }
+        outcome:
+          oneOf:
+            - $ref: '#/components/schemas/DiceOutcome'
+            - $ref: '#/components/schemas/CrashOutcome'
+            - $ref: '#/components/schemas/MultiEventOutcome'
+
+    DiceOutcome:
+      type: object
+      required: [type, diceValues, outcomeSum, outcomeSide]
+      properties:
+        type: { const: DICE }
+        diceValues: { type: array, items: { type: integer, minimum: 1, maximum: 6 } }
+        outcomeSum: { type: integer }
+        outcomeSide: { type: string, enum: [LOW, HIGH] }
+
+    CrashOutcome:
+      type: object
+      required: [type, crashMultiplier, u]
+      properties:
+        type: { const: CRASH }
+        crashMultiplier: { type: number, minimum: 1, maximum: 1000 }
+        u: { type: number, minimum: 0, exclusiveMaximum: 1 }
+
+    MultiEventOutcome:
+      type: object
+      required: [type, baseGame, events]
+      properties:
+        type: { const: MULTI }
+        baseGame: { }
+        events:
+          type: array
+          items:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string }
+              subOutcome: { }
+              payoutMicro: { $ref: '#/components/schemas/MicroAmount' }
+        featurePurchased: { type: boolean }
+        jackpotContributionMicro: { $ref: '#/components/schemas/MicroAmount' }
+
+    WebhookEnvelope:
+      type: object
+      required: [eventId, eventType, occurredAt, operatorId, dataVersion, data]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid' }
+        eventType:
+          type: string
+          enum:
+            - round.settled
+            - round.voided
+            - session.terminated
+            - session.rg_limit_tripped
+            - reconciliation.discrepancy
+            - credential.rotated
+            - credential.revoked
+            - webhook.test
+        occurredAt: { type: string, format: date-time }
+        operatorId: { type: string }
+        dataVersion: { type: integer, minimum: 1 }
+        data: { }
+
+    RoundSettledData:
+      type: object
+      required: [roundId, sessionId, gameCode, currency, totalBetsMicro, totalPayoutsMicro, settledAt, rngVersion]
+      properties:
+        roundId: { $ref: '#/components/schemas/Uuid' }
+        sessionId: { $ref: '#/components/schemas/Uuid' }
+        gameCode: { type: string }
+        currency: { $ref: '#/components/schemas/Currency' }
+        totalBetsMicro: { $ref: '#/components/schemas/MicroAmount' }
+        totalPayoutsMicro: { $ref: '#/components/schemas/MicroAmount' }
+        settledAt: { type: string, format: date-time }
+        rngVersion: { type: string }
+        outcomeSide: { type: string, enum: [LOW, HIGH], nullable: true }
+        outcomeSum: { type: integer, nullable: true }
