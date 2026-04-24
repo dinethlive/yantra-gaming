@@ -1,0 +1,29 @@
+{
+  "name": "@yantra/provider-admin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3103 --strictPort",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 3103 --strictPort",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
+    "@simplewebauthn/browser": "^11.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.2",
+    "react-router-dom": "^6.28.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.11"
+  }
+}
