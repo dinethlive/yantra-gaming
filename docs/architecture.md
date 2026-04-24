@@ -136,10 +136,10 @@ sequenceDiagram
     participant DB as Postgres
     participant W as Operator wallet
 
-    P->>R: place_bet(side, amountMicro)
-    R->>DB: INSERT WalletCall<br/>(BET, requestUuid, txUuid, attempt=1)<br/>[before HTTP]
-    R->>W: POST /wallet/bet<br/>{requestUuid, transactionUuid=txUuid,<br/>amountMicro, roundId}
-    W-->>R: 200 {status: RS_OK, balanceMicro}
+    P->>R: place_bet (side, amountMicro)
+    R->>DB: INSERT WalletCall<br/>BET, requestUuid, txUuid, attempt=1<br/>(before HTTP)
+    R->>W: POST /wallet/bet<br/>requestUuid, transactionUuid=txUuid,<br/>amountMicro, roundId
+    W-->>R: 200 RS_OK, balanceMicro
     R->>DB: UPDATE WalletCall set response
     R->>DB: INSERT Bet (status=ACCEPTED, txUuid)<br/>INSERT PendingRoundBet (state=HELD)
     R-->>P: bet_placed
@@ -147,18 +147,18 @@ sequenceDiagram
 
     Note over R: betting window expires
 
-    R->>R: outcome = determineOutcome(<br/>serverSeed, clientSeed, nonce, weights)
+    R->>R: outcome = determineOutcome<br/>(serverSeed, clientSeed, nonce, weights)
     R->>DB: UPDATE Round set outcome
-    R-->>P: round_result {side, sum}
+    R-->>P: round_result (side, sum)
 
     alt bet is a winner
-        R->>DB: INSERT WalletCall<br/>(WIN, newTxUuid, refTxUuid=bet.txUuid)
-        R->>W: POST /wallet/win<br/>{referenceTransactionUuid=bet.txUuid}
-        W-->>R: 200 {RS_OK, balanceMicro}
+        R->>DB: INSERT WalletCall<br/>WIN, newTxUuid, refTxUuid=bet.txUuid
+        R->>W: POST /wallet/win<br/>referenceTransactionUuid=bet.txUuid
+        W-->>R: 200 RS_OK, balanceMicro
         R->>DB: UPDATE Bet set status=SETTLED<br/>UPDATE PendingRoundBet state=RESOLVED
         R-->>P: balance_update
     else bet is a loser
-        R->>DB: UPDATE Bet set status=SETTLED<br/>(no /win call; stake already lost)
+        R->>DB: UPDATE Bet set status=SETTLED<br/>no wallet/win call, stake already lost
     end
 
     R->>DB: UPDATE Round set settled=true
@@ -181,17 +181,17 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    start["wallet.bet(txUuid)"] --> call["POST /wallet/bet"]
+    start["wallet.bet (txUuid)"] --> call["POST /wallet/bet"]
     call --> resp{"response?"}
-    resp -- "RS_OK" --> ok["accept bet<br/>INSERT Bet, PendingRoundBet"]
-    resp -- "RS_ERROR_DUPLICATE_TRANSACTION" --> dup["treat as RS_OK<br/>(operator already processed)"]
-    resp -- "RS_ERROR_NOT_ENOUGH_MONEY<br/>RS_ERROR_LIMIT_REACHED<br/>RS_ERROR_USER_DISABLED" --> reject["clean reject<br/>emit bet_rejected<br/>(no rollback, no retry)"]
-    resp -- "timeout<br/>5xx<br/>network error<br/>unknown RS_*" --> uncertain["uncertain outcome<br/>enqueue rollback(txUuid)<br/>emit bet_rejected"]
+    resp -->|"RS_OK"| ok["accept bet<br/>INSERT Bet, PendingRoundBet"]
+    resp -->|"RS_ERROR_DUPLICATE_TRANSACTION"| dup["treat as RS_OK<br/>(operator already processed)"]
+    resp -->|"RS_ERROR_NOT_ENOUGH_MONEY<br/>RS_ERROR_LIMIT_REACHED<br/>RS_ERROR_USER_DISABLED"| reject["clean reject<br/>emit bet_rejected<br/>(no rollback, no retry)"]
+    resp -->|"timeout<br/>5xx<br/>network error<br/>unknown RS code"| uncertain["uncertain outcome<br/>enqueue rollback (txUuid)<br/>emit bet_rejected"]
     uncertain --> retry[("PendingWalletJob<br/>exponential backoff<br/>attempts logged in WalletCall")]
     retry --> rbcall["POST /wallet/rollback<br/>(same txUuid)"]
     rbcall --> rbresp{"response?"}
-    rbresp -- "RS_OK<br/>RS_ERROR_DUPLICATE_TRANSACTION<br/>RS_ERROR_TRANSACTION_DOES_NOT_EXIST" --> rbok["mark completed<br/>(operator cleaned / never had it)"]
-    rbresp -- "other" --> rbretry["increment attempts<br/>alert if > 5min stuck"]
+    rbresp -->|"RS_OK<br/>RS_ERROR_DUPLICATE_TRANSACTION<br/>RS_ERROR_TRANSACTION_DOES_NOT_EXIST"| rbok["mark completed<br/>(operator cleaned / never had it)"]
+    rbresp -->|"other"| rbretry["increment attempts<br/>alert if over 5min stuck"]
     rbretry --> retry
 ```
 
