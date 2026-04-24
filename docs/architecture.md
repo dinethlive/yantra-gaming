@@ -22,39 +22,25 @@ Yantra Gaming sits as a game provider between operators and players.
 
 ```mermaid
 flowchart LR
-    player(["Player
-    (browser)"])
-    operator["<b>Operator</b> (B2C casino)
-    • Wallet (source of truth for money)
-    • KYC, deposits, bonuses
-    • Responsible gambling
-    • Player identity"]
-    rgs["<b>Yantra Gaming RGS</b>
-    • Game launch API
-    • Round lifecycle engine
-    • Provably-fair RNG
-    • Wallet adapter
-    • Audit ledger"]
-    cert[("Cert lab
-    (GLI / iTech / BMM)")]
-    obs[("Observability
-    backend
-    (Prometheus / OTel)")]
+    player(["Player<br/>(browser)"])
+    operator["<b>Operator</b> (B2C casino)<br/>• Wallet (source of truth for money)<br/>• KYC, deposits, bonuses<br/>• Responsible gambling<br/>• Player identity"]
+    rgs["<b>Yantra Gaming RGS</b><br/>• Game launch API<br/>• Round lifecycle engine<br/>• Provably-fair RNG<br/>• Wallet adapter<br/>• Audit ledger"]
+    cert[("Cert lab<br/>(GLI / iTech / BMM)")]
+    obs[("Observability backend<br/>(Prometheus / OTel)")]
 
     player -- "iframe + WebSocket" --> rgs
     player -- "game lobby" --> operator
-    operator -- "POST /v1/session
-    (HMAC-signed)" --> rgs
-    rgs -- "POST /wallet/bet | win | rollback
-    (HMAC-signed)" --> operator
+    operator -- "POST /v1/session<br/>(HMAC-signed)" --> rgs
+    rgs -- "POST /wallet/bet | win | rollback<br/>(HMAC-signed)" --> operator
     rgs -- "OTLP / Prom scrape" --> obs
-    rgs -. "cert submission
-    (artefacts only)" .-> cert
+    rgs -. "cert submission<br/>(artefacts only)" .-> cert
 
-    classDef ext fill:#f5f5f5,stroke:#666;
-    classDef sys fill:#cde8ff,stroke:#1f6feb,stroke-width:2px;
-    class operator,player,cert,obs ext;
+    classDef ext fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
+    classDef sys fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
+    classDef ds fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
+    class operator,player ext;
     class rgs sys;
+    class cert,obs ds;
 ```
 
 **Trust boundaries:**
@@ -80,40 +66,27 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph player["Player browser"]
-        gc["game-client
-        (Vite + React + PixiJS)
-        iframe :3100"]
+        gc["game-client<br/>(Vite + React + PixiJS)<br/>iframe :3100"]
     end
 
     subgraph operator["Operator side"]
-        opwallet["Wallet API
-        (operator-owned)"]
+        opwallet["Wallet API<br/>(operator-owned)"]
         oplobby["Lobby / Launcher"]
     end
 
     subgraph rgs["Yantra Gaming (this repo)"]
-        rgssrv["rgs-server
-        (Express + Socket.IO + Prisma)
-        :4500"]
-        portal["operator-portal
-        (Vite + React)
-        :3101"]
-        mock["mock-operator
-        (Vite + Express)
-        :3102 lobby / :4300 wallet"]
-        sdk["operator-sdk
-        (npm package operators install)"]
-        spec["wallet-spec
-        (shared types)"]
+        rgssrv["rgs-server<br/>(Express + Socket.IO + Prisma)<br/>:4500"]
+        portal["operator-portal<br/>(Vite + React)<br/>:3101"]
+        mock["mock-operator<br/>(Vite + Express)<br/>:3102 lobby / :4300 wallet"]
+        sdk["operator-sdk<br/>(npm package operators install)"]
+        spec["wallet-spec<br/>(shared types)"]
     end
 
-    db[("Postgres 16
-    :5434")]
+    db[("Postgres 16<br/>:5434")]
     otel[("OTel collector")]
 
     oplobby -->|"launch redirect"| gc
-    gc -->|"WebSocket
-    place_bet / round_state"| rgssrv
+    gc -->|"WebSocket<br/>place_bet / round_state"| rgssrv
     rgssrv -->|"/wallet/bet | win | rollback"| opwallet
     rgssrv <-->|"SQL (Prisma)"| db
     portal -->|"signed admin API"| rgssrv
@@ -125,9 +98,9 @@ flowchart TB
     sdk -.->|"import"| spec
     mock -.->|"import"| spec
 
-    classDef box fill:#cde8ff,stroke:#1f6feb;
-    classDef ext fill:#f5f5f5,stroke:#666;
-    classDef ds fill:#ffe9b3,stroke:#b88700;
+    classDef box fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
+    classDef ext fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
+    classDef ds fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
     class rgssrv,gc,portal,mock,sdk,spec box;
     class opwallet,oplobby ext;
     class db,otel ds;
@@ -177,7 +150,7 @@ sequenceDiagram
     R-->>P: bet_placed
     R-->>P: balance_update
 
-    Note over R: … betting window expires …
+    Note over R: betting window expires
 
     R->>R: outcome = determineOutcome(<br/>serverSeed, clientSeed, nonce, weights)
     R->>DB: UPDATE Round set outcome
@@ -199,7 +172,7 @@ sequenceDiagram
 **Notes on the shape:**
 
 - Every outbound wallet call is journalled **before** the HTTP request fires
-  (step 2, step N). On process death mid-call the row exists on restart ,
+  (step 2, step N). On process death mid-call the row exists on restart, so
   crash recovery (§6) can resolve it.
 - The `transactionUuid` on `/wallet/win` references the originating bet's
   `transactionUuid`. Operators use this to match credits to debits.
@@ -215,41 +188,25 @@ sequenceDiagram
 flowchart TD
     start["wallet.bet(txUuid)"] --> call["POST /wallet/bet"]
     call --> resp{"response?"}
-    resp -- "RS_OK" --> ok["accept bet
-    → INSERT Bet, PendingRoundBet"]
-    resp -- "RS_ERROR_DUPLICATE_TRANSACTION" --> dup["treat as RS_OK
-    (operator already processed)"]
-    resp -- "RS_ERROR_NOT_ENOUGH_MONEY
-    RS_ERROR_LIMIT_REACHED
-    RS_ERROR_USER_DISABLED" --> reject["clean reject
-    → emit bet_rejected
-    (no rollback, no retry)"]
-    resp -- "timeout
-    5xx
-    network error
-    unknown RS_*" --> uncertain["uncertain outcome
-    → enqueue rollback(txUuid)
-    → emit bet_rejected"]
-    uncertain --> retry[("PendingWalletJob
-    exponential backoff
-    attempts logged in WalletCall")]
-    retry --> rbcall["POST /wallet/rollback
-    (same txUuid)"]
+    resp -- "RS_OK" --> ok["accept bet<br/>INSERT Bet, PendingRoundBet"]
+    resp -- "RS_ERROR_DUPLICATE_TRANSACTION" --> dup["treat as RS_OK<br/>(operator already processed)"]
+    resp -- "RS_ERROR_NOT_ENOUGH_MONEY<br/>RS_ERROR_LIMIT_REACHED<br/>RS_ERROR_USER_DISABLED" --> reject["clean reject<br/>emit bet_rejected<br/>(no rollback, no retry)"]
+    resp -- "timeout<br/>5xx<br/>network error<br/>unknown RS_*" --> uncertain["uncertain outcome<br/>enqueue rollback(txUuid)<br/>emit bet_rejected"]
+    uncertain --> retry[("PendingWalletJob<br/>exponential backoff<br/>attempts logged in WalletCall")]
+    retry --> rbcall["POST /wallet/rollback<br/>(same txUuid)"]
     rbcall --> rbresp{"response?"}
-    rbresp -- "RS_OK
-    RS_ERROR_DUPLICATE_TRANSACTION
-    RS_ERROR_TRANSACTION_DOES_NOT_EXIST" --> rbok["mark completed
-    (operator cleaned / never had it)"]
-    rbresp -- "other" --> rbretry["increment attempts
-    alert if > 5min stuck"]
+    rbresp -- "RS_OK<br/>RS_ERROR_DUPLICATE_TRANSACTION<br/>RS_ERROR_TRANSACTION_DOES_NOT_EXIST" --> rbok["mark completed<br/>(operator cleaned / never had it)"]
+    rbresp -- "other" --> rbretry["increment attempts<br/>alert if > 5min stuck"]
     rbretry --> retry
 
-    classDef ok fill:#ccf2d4,stroke:#2d7a4b;
-    classDef err fill:#ffd7d7,stroke:#a32a2a;
-    classDef retry fill:#ffe9b3,stroke:#b88700;
+    classDef ok fill:#2da44e,stroke:#1a7f37,stroke-width:2px,color:#fff;
+    classDef err fill:#cf222e,stroke:#a40e26,stroke-width:2px,color:#fff;
+    classDef retry fill:#bc4c00,stroke:#8a3800,stroke-width:2px,color:#fff;
+    classDef decide fill:#9a6700,stroke:#633c01,stroke-width:2px,color:#fff;
     class ok,dup,rbok ok;
     class reject err;
     class uncertain,retry,rbcall,rbretry retry;
+    class resp,rbresp decide;
 ```
 
 Classifier rules are tabulated in
@@ -270,16 +227,18 @@ flowchart TD
     outcome -- "yes" --> winners["for each ACCEPTED Bet<br/>on winning side"]
     winners --> enqueuewin["enqueue PendingWalletJob(WIN)<br/>referenceTransactionUuid=bet.txUuid"]
     enqueuewin --> markR["UPDATE Round settled=true"]
-    outcome -- "no" --> void["transition Round → VOIDED"]
+    outcome -- "no" --> void["transition Round to VOIDED"]
     void --> rollbet["for each ACCEPTED Bet:<br/>UPDATE status=VOIDED<br/>enqueue PendingWalletJob(ROLLBACK)"]
     rollbet --> markV["UPDATE PendingRoundBet<br/>state=REFUNDED<br/>resolutionReason=ROUND_VOIDED"]
     markR --> done["pending job runner<br/>drains in background"]
     markV --> done
 
-    classDef decide fill:#ffe9b3,stroke:#b88700;
-    classDef act fill:#cde8ff,stroke:#1f6feb;
-    class outcome decide;
-    class winners,enqueuewin,void,rollbet,markR,markV,done act;
+    classDef decide fill:#9a6700,stroke:#633c01,stroke-width:2px,color:#fff;
+    classDef act fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
+    classDef warn fill:#bc4c00,stroke:#8a3800,stroke-width:2px,color:#fff;
+    class iter,outcome decide;
+    class winners,enqueuewin,markR,done act;
+    class void,rollbet,markV warn;
 ```
 
 **Invariants preserved:**
@@ -313,10 +272,14 @@ flowchart TB
     wc2 --> db
     wc3 --> db
 
-    classDef op1 fill:#d6e5ff,stroke:#1f6feb;
-    classDef op2 fill:#ffe1d6,stroke:#cc3300;
+    classDef op1 fill:#1f6feb,stroke:#0b4da0,stroke-width:2px,color:#fff;
+    classDef op2 fill:#bc4c00,stroke:#8a3800,stroke-width:2px,color:#fff;
+    classDef infra fill:#6e7781,stroke:#424a53,stroke-width:2px,color:#fff;
+    classDef ds fill:#bf3989,stroke:#99286e,stroke-width:2px,color:#fff;
     class eng1,eng2,wc1,wc2 op1;
     class eng3,wc3 op2;
+    class req,auth,opid,reg infra;
+    class db ds;
 ```
 
 **Isolation levers:**
@@ -342,10 +305,10 @@ sequenceDiagram
     participant DB as Postgres
     participant P as Player iframe
 
-    Op->>R: POST /v1/session<br/>(signed)
+    Op->>R: POST /v1/session (signed)
     R->>R: serverSeed = randomBytes(32)<br/>serverSeedHash = SHA256(serverSeed)
-    R->>DB: INSERT GameSession<br/>(serverSeed [encrypted], serverSeedHash, clientSeed, nonce=0)
-    R-->>Op: { sessionId, sessionToken, launchUrl, serverSeedHash }
+    R->>DB: INSERT GameSession<br/>(serverSeed [encrypted], serverSeedHash,<br/>clientSeed, nonce=0)
+    R-->>Op: { sessionId, sessionToken, launchUrl,<br/>serverSeedHash }
     Op-->>P: iframe src=launchUrl
 
     P->>R: socket connect (sessionToken)
@@ -357,7 +320,7 @@ sequenceDiagram
         R->>R: nonce += 1
     end
 
-    Note over P,R: player requests seed rotation<br/>or session ends
+    Note over P,R: player requests seed rotation or session ends
 
     R->>DB: mark GameSession terminatedAt / rotate
     Op->>R: GET /v1/rounds/:id/proof
@@ -450,7 +413,7 @@ erDiagram
         string resolutionReason
     }
     InboundIdempotency {
-        string key PK "(operatorId, endpoint, requestUuid)"
+        string key PK
         json cachedResponse
         timestamp expiresAt
     }
