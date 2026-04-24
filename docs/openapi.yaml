@@ -22,8 +22,8 @@ info:
     name: Yantra Gaming
     url: https://github.com/
   license:
-    name: MIT
-    identifier: MIT
+    name: Apache-2.0
+    identifier: Apache-2.0
 
 servers:
   - url: https://rgs.yantra.example

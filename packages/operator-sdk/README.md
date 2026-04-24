@@ -176,4 +176,4 @@ Run the `apps/mock-operator` in the repo to exercise every failure mode: timeout
 
 ## License
 
-MIT, see the repository root.
+Apache License 2.0, see the repository root.

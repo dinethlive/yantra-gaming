@@ -8,7 +8,7 @@ A plugin-based RGS where operators plug in their wallet and this server runs the
 
 [![Docs](https://img.shields.io/badge/docs-live-1f6feb?style=for-the-badge&logo=readthedocs&logoColor=white)](https://dinethlive.github.io/yantra-gaming/)
 [![Stack](https://img.shields.io/badge/stack-Bun_·_TypeScript_·_Postgres_·_Prisma_·_Socket.IO-000?style=for-the-badge)](#tech-choices)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](./LICENSE)
+[![License](https://img.shields.io/badge/license-Apache_2.0-green?style=for-the-badge)](./LICENSE)
 
 **[Documentation site](https://dinethlive.github.io/yantra-gaming/)** · [Integration guide](./docs/integration-guide.md) · [Wallet API](./docs/wallet-api.md) · [Provably fair](./docs/provably-fair.md) · [Changelog](./CHANGELOG.md) · [Security](./SECURITY.md)
 
@@ -372,7 +372,7 @@ Submission bundles are assembled by `bun scripts/export-cert-packet.ts <game-cod
 ## Changelog / License / Security
 
 - [`CHANGELOG.md`](./CHANGELOG.md), versioning policy and release notes.
-- MIT. See [`LICENSE`](./LICENSE).
+- Apache License 2.0. See [`LICENSE`](./LICENSE).
 - Vulnerability reports: [`SECURITY.md`](./SECURITY.md).
 
 <div align="center">

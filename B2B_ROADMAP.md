@@ -675,7 +675,7 @@ yantra-gaming/
 ├── README.md
 ├── CHANGELOG.md
 ├── SECURITY.md
-├── LICENSE                              # MIT
+├── LICENSE                              # Apache-2.0
 ├── mkdocs.yml                           # MkDocs + Material config, renders docs/ +
 │                                        #   games/<code>/docs/ to a static site
 ├── requirements-docs.txt                # pinned MkDocs toolchain (consumed by CI)
