@@ -5,12 +5,9 @@
 Please report security issues privately. Do **not** open a public GitHub
 issue for suspected vulnerabilities.
 
-- Email: `security@example.com` *(update when pushing to GitHub)*
+- Email: `hello@dineth.lk`
 - Include: a reproduction, the affected component, and the potential impact.
 - You will receive an acknowledgment within 5 business days.
-
-PGP encryption is optional but welcome. A key will be published in this
-document once the repo is pushed.
 
 ## Scope
 
