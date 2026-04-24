@@ -1,0 +1,79 @@
+# Build and deploy the MkDocs site to GitHub Pages.
+#
+# Content source: mkdocs.yml at the repo root (docs_dir: .), which pulls
+# from /docs, /games/<code>/docs, and root-level markdown.
+#
+# Build is strict — any broken link, missing nav entry, or mkdocs warning
+# fails the job. That's deliberate; silent doc drift is the thing docs-in-repo
+# is trying to prevent.
+#
+# Enabling: in the GitHub repo Settings → Pages, set Source = GitHub Actions.
+# First push to main after that lights up https://<owner>.github.io/<repo>/.
+
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'games/*/docs/**'
+      - '*.md'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'games/*/docs/**'
+      - '*.md'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one in-flight deploy; cancel any older runs.
+concurrency:
+  group: pages-docs
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install MkDocs toolchain
+        run: pip install -r requirements-docs.txt
+
+      - name: Build site (strict)
+        run: mkdocs build --strict
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    # Only deploy on main — PRs just validate that the build is clean.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
