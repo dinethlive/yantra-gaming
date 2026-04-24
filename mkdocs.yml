@@ -1,0 +1,161 @@
+site_name: Yantra Gaming
+site_description: Multi-tenant B2B iGaming Remote Gaming Server — plugin-based game layer, provably-fair RNG, money-safe wallet contract.
+site_url: https://yantra-gaming.github.io/
+repo_name: yantra-gaming
+# Update `repo_url` once the repo is pushed to GitHub. Leaving the repo_name
+# on makes the "Edit this page" button render; the link becomes live when
+# repo_url is set.
+# repo_url: https://github.com/<owner>/yantra-gaming
+# edit_uri: edit/main/
+
+# Point MkDocs at the repo root so per-game docs (games/<code>/docs/*) and
+# root-level markdown (README, CHANGELOG, SECURITY, B2B_ROADMAP) are all
+# reachable without a build-time copy step. Everything that isn't a doc
+# file is excluded via `exclude_docs` below.
+docs_dir: .
+site_dir: site
+
+# MkDocs 1.5+ gitignore-style exclusion. Keeps the built site small and
+# stops MkDocs from spending time processing code paths.
+exclude_docs: |
+  node_modules/
+  .claude/
+  .github/
+  .env*
+  apps/
+  packages/
+  scripts/
+  tests/
+  games/*/src/
+  games/*/fixtures/
+  games/*/node_modules/
+  games/*/package.json
+  games/*/tsconfig.json
+  bun.lock
+  package.json
+  tsconfig.base.json
+  docker-compose.yml
+  .tool-versions
+  LICENSE
+  site/
+  CLAUDE.md
+  # README.md is the GitHub repo landing page and uses repo-relative links
+  # (./games/..., ./LICENSE) that MkDocs can't resolve to rendered pages.
+  # docs/index.md is the MkDocs site home instead.
+  README.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  # same-dir lets mkdocs.yml live at the repo root with docs_dir: . — MkDocs
+  # core forbids docs_dir from being the config file's parent, which blocks
+  # the "render the whole repo's markdown" pattern without this plugin.
+  # https://github.com/oprypin/mkdocs-same-dir
+  - same-dir
+  - search
+
+# Tabs: Platform (GLI-19) • Games (GLI-11) • Roadmap • Changelog
+# Matches the cert-scope split we use in the repo.
+nav:
+  - Home: index.md
+  - Platform:
+      - Overview: docs/integration-guide.md
+      - Wallet API: docs/wallet-api.md
+      - Webhook signature: docs/webhook-signature.md
+      - Provably fair: docs/provably-fair.md
+      - Error codes: docs/error-codes.md
+      - Currency + FX: docs/fx-and-currency.md
+      - Architecture: docs/architecture.md
+      - Change management: docs/change-management.md
+      - Cert submission: docs/cert-submission-checklist.md
+      - Observability: docs/observability.md
+      - Security: docs/security.md
+      - Threat model: docs/threat-model.md
+      - Incidents: docs/incidents.md
+      - Runbook: docs/runbook.md
+      - Sandbox: docs/sandbox.md
+      - Test vectors: docs/integration-test-vectors.md
+  - Games:
+      - Ketapola Dice:
+          - Game rules: games/ketapola-dice/docs/game-rules.md
+          - PAR sheet: games/ketapola-dice/docs/par-sheet.md
+          - RNG spec: games/ketapola-dice/docs/rng-spec.md
+          - Test vectors: games/ketapola-dice/docs/rng-test-vectors.md
+      - Crash Minimal:
+          - Game rules: games/crash-minimal/docs/game-rules.md
+          - PAR sheet: games/crash-minimal/docs/par-sheet.md
+          - RNG spec: games/crash-minimal/docs/rng-spec.md
+          - Test vectors: games/crash-minimal/docs/rng-test-vectors.md
+  - Roadmap: B2B_ROADMAP.md
+  - Changelog: CHANGELOG.md
+  - Security policy: SECURITY.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/
+  generator: false
+
+copyright: "MIT — engineering docs for Yantra Gaming RGS."
