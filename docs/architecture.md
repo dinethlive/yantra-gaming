@@ -34,15 +34,6 @@ flowchart LR
     rgs -- "POST /wallet/bet | win | rollback<br/>(HMAC-signed)" --> operator
     rgs -- "OTLP / Prom scrape" --> obs
     rgs -. "cert submission<br/>(artefacts only)" .-> cert
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class rgs primary;
-    class operator secondary;
-    class player tertiary;
-    class cert,obs store;
 ```
 
 **Trust boundaries:**
@@ -99,13 +90,6 @@ flowchart TB
     rgssrv -.->|"import"| spec
     sdk -.->|"import"| spec
     mock -.->|"import"| spec
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class rgssrv,gc,portal,mock,sdk,spec primary;
-    class opwallet,oplobby secondary;
-    class db,otel store;
 ```
 
 ---
@@ -200,15 +184,6 @@ flowchart TD
     rbresp -- "RS_OK<br/>RS_ERROR_DUPLICATE_TRANSACTION<br/>RS_ERROR_TRANSACTION_DOES_NOT_EXIST" --> rbok["mark completed<br/>(operator cleaned / never had it)"]
     rbresp -- "other" --> rbretry["increment attempts<br/>alert if > 5min stuck"]
     rbretry --> retry
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class ok,dup,rbok primary;
-    class reject secondary;
-    class uncertain,retry,rbcall,rbretry tertiary;
-    class resp,rbresp store;
 ```
 
 Classifier rules are tabulated in
@@ -234,13 +209,6 @@ flowchart TD
     rollbet --> markV["UPDATE PendingRoundBet<br/>state=REFUNDED<br/>resolutionReason=ROUND_VOIDED"]
     markR --> done["pending job runner<br/>drains in background"]
     markV --> done
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class iter,outcome store;
-    class winners,enqueuewin,markR,done primary;
-    class void,rollbet,markV secondary;
 ```
 
 **Invariants preserved:**
@@ -273,15 +241,6 @@ flowchart TB
     wc1 --> db[("Postgres<br/>rows filtered by<br/>forOperator(id) wrapper")]
     wc2 --> db
     wc3 --> db
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class eng1,eng2,wc1,wc2 primary;
-    class eng3,wc3 secondary;
-    class req,auth,opid,reg tertiary;
-    class db store;
 ```
 
 **Isolation levers:**

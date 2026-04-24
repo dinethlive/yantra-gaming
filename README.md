@@ -171,15 +171,6 @@ flowchart TB
     engine --> audit
     engine --> rglimits
     engine & walletclient & audit --> db
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class engine,socket,registry,walletclient,audit,rglimits primary;
-    class dice,crash,future secondary;
-    class iframe,wallet,backoffice tertiary;
-    class contract,rngcore,walletspec,db store;
 ```
 
 See [`docs/architecture.md`](./docs/architecture.md) for C4-level diagrams, state machines, and sequence diagrams.

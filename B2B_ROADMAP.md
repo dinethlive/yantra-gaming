@@ -159,15 +159,6 @@ flowchart TB
     engine --> ledger
     ledger --> db
     recon --> db
-
-    classDef primary fill:#222,stroke:#000,color:#fff,stroke-width:2px;
-    classDef secondary fill:#555,stroke:#222,color:#fff,stroke-width:2px;
-    classDef tertiary fill:#888,stroke:#333,color:#fff,stroke-width:2px;
-    classDef store fill:#bbb,stroke:#333,color:#000,stroke-width:2px;
-    class api,engine,adapter,rng,ledger,admin,recon,otel primary;
-    class opstack,opwallet secondary;
-    class iframe tertiary;
-    class db store;
 ```
 
 Two design properties that drive everything else:
