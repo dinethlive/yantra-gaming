@@ -22,9 +22,18 @@ Yantra Gaming sits as a game provider between operators and players.
 
 ```mermaid
 flowchart LR
-    player(["Player<br/>(browser)"])
-    operator["<b>Operator</b> (B2C casino)<br/>• Wallet (source of truth for money)<br/>• KYC, deposits, bonuses<br/>• Responsible gambling<br/>• Player identity"]
-    rgs["<b>Yantra Gaming RGS</b><br/>• Game launch API<br/>• Round lifecycle engine<br/>• Provably-fair RNG<br/>• Wallet adapter<br/>• Audit ledger"]
+    subgraph playerSide["Player side"]
+        player["Player browser"]
+    end
+
+    subgraph operatorSide["Operator (B2C casino)"]
+        operator["Wallet (source of truth for money)<br/>KYC, deposits, bonuses<br/>Responsible gambling<br/>Player identity"]
+    end
+
+    subgraph rgsSide["Yantra Gaming"]
+        rgs["Yantra Gaming RGS<br/>Game launch API<br/>Round lifecycle engine<br/>Provably-fair RNG<br/>Wallet adapter<br/>Audit ledger"]
+    end
+
     cert[("Cert lab<br/>(GLI / iTech / BMM)")]
     obs[("Observability backend<br/>(Prometheus / OTel)")]
 
